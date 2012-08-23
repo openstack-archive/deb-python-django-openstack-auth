@@ -1,0 +1,17 @@
+Source: python-django-openstack-auth
+Section: python
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: debhelper (>= 8.0.0), python-setuptools, python-all (>= 2.6.6-3~), python-mox,
+ python-django, python-keystoneclient
+Standards-Version: 3.9.3
+Homepage: http://pypi.python.org/pypi/django_openstack_auth
+
+Package: python-openstack-auth
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}, python-keystoneclient, python-django
+Conflicts: python-django-openstack-auth ( <<  1.0.1-0ubuntu4~ )
+Replaces: python-django-openstack-auth ( <<  1.0.1-0ubuntu4~ )
+Description: A django authentication backend for Openstack
+ Django authentication backend for use with the
+ OpenStack Keystone Identity backend.

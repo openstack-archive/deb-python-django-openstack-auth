@@ -1,0 +1,36 @@
+python-django-openstack-auth (1.0.1-0ubuntu6) quantal; urgency=low
+
+  * debian/control: Take possible backprots into account. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 23 Aug 2012 07:47:45 -0500
+
+python-django-openstack-auth (1.0.1-0ubuntu5) quantal; urgency=low
+
+  * debian/control: rename binary to python-openstack-auth. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 20 Aug 2012 20:09:26 -0500
+
+python-django-openstack-auth (1.0.1-0ubuntu4) quantal; urgency=low
+
+  * debian/control: Change Architecture: from any to all, as we do not require
+    a per arch package.
+
+ -- Dave Walker (Daviey) <DaveWalker@ubuntu.com>  Fri, 17 Aug 2012 15:22:26 +0100
+
+python-django-openstack-auth (1.0.1-0ubuntu3) quantal; urgency=low
+
+  * Fix lintian warnings. (LP: #1031479)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 08 Aug 2012 07:22:18 -0500
+
+python-django-openstack-auth (1.0.1-0ubuntu2) quantal; urgency=low
+
+  * Re-license the package to sync up with the source.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Aug 2012 07:24:57 -0500
+
+python-django-openstack-auth (1.0.1-0ubuntu1) quantal; urgency=low
+
+  * Initial release.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Jul 2012 07:25:40 -0500
