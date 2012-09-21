@@ -1,6 +1,6 @@
 python-django-openstack-auth (1.0.1-1) experimental; urgency=low
 
-  * First debian release (Closes #687932)
+  * First debian release (Closes: #687932)
 
  -- Mehdi Abaakouk <sileht@sileht.net>  Mon, 17 Sep 2012 11:40:00 +0200
 
