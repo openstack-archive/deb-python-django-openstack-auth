@@ -13,6 +13,10 @@ DEBPKGNAME :=$(shell dpkg-parsechangelog | grep -E ^Source: | cut -d" " -f2)
 override_dh_builddeb:
 	dh_builddeb -- -Zxz -z9
 
+override_dh_clean:
+	dh_clean
+	rm -rf setup.cfg django_openstack_auth.egg-info
+
 override_dh_auto_test:
 	for pyversion in $(shell pyversions -r); do $$pyversion setup.py test; done
 
