@@ -23,5 +23,5 @@ Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${python:Depends}, ${misc:Depends}, python-keystoneclient, python-django
 Description: Django authentication backend for Openstack
  Django authentication backend for use with the OpenStack Keystone Identity
- backend. This python module is used by Horizon (the Openstack Dashport web
+ backend. This Python module is used by Horizon (the Openstack Dashport web
  GUI) to auth against Keystone.
