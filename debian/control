@@ -12,6 +12,7 @@ Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git
 
 Package: python-openstack-auth
 Architecture: all
+Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${python:Depends}, ${misc:Depends}, python-keystoneclient, python-django
 Description: Django authentication backend for Openstack
  Django authentication backend for use with the
