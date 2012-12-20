@@ -1,5 +1,5 @@
 python-django-openstack-auth (1.0.2-1) experimental; urgency=low
 
-  Initial release.
+  Initial release (Closes: #687932).
 
  -- Thomas Goirand <zigo@debian.org>  Thu, 20 Dec 2012 09:56:57 +0000
