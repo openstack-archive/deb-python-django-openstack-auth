@@ -1,0 +1,105 @@
+commit ef030ff77a435ef1d327ad8be595cb59b11b64f3
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Mon Aug 20 14:49:44 2012 -0700
+
+    Bumping version number for bugfix release with redirect fix.
+
+commit 8ac8c7e375014fe0be1e31f88851125cde9cbc37
+Merge: 0273b91 47ffb62
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Mon Aug 20 14:37:46 2012 -0700
+
+    Merge pull request #7 from vuntz/redirect-next
+    
+    Fix redirection in login form.
+
+commit 47ffb622b62d601d12dab5f86a10acd6bf70cabe
+Author: Vincent Untz <vuntz@suse.com>
+Date:   Mon Aug 20 16:25:50 2012 +0200
+
+    Fix redirection in logging form
+    
+    The redirection was being ignored because the template in horizon needs
+    the a value for redirect_field_name. We simply set it to the default.
+
+commit 0273b9186e6ef191ea4aefb585350863dadbf157
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 19:33:03 2012 -0700
+
+    Bumping version number for permission support release.
+
+commit 03fe09c5a5f72dbba9528cbb89daf4d2aea606aa
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 19:30:51 2012 -0700
+
+    Adds permissions support.
+    
+    Fixes #1.
+
+commit a1ff650761cb641164bcfa7419692a50b568a069
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 17:18:45 2012 -0700
+
+    Catch AuthorizationFailure.
+    
+    Fixes #5.
+
+commit a31c1dae93a1033702390b767250d7ec3534d847
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 16:25:22 2012 -0700
+
+    Adding manifest file.
+
+commit 0bc387b463753a76385e1c4a72db784789129c36
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 16:13:13 2012 -0700
+
+    Fixed typo in readme.
+
+commit 25c0ff6fe7637dda327ed8742b3ca4f816754fef
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 16:12:44 2012 -0700
+
+    Added docs to readme.
+
+commit 30dddae11243e40d7a4867a783b01d4922924594
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 16:03:33 2012 -0700
+
+    Adding a few translation files.
+    
+    Fixes issue #3.
+
+commit 998c96cfaefbf7e6271226688034883e23ce2ca3
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 15:39:38 2012 -0700
+
+    Adds docs.
+    
+    Fixes #2.
+
+commit 9d45964b02e98212025399e69395296f288bd546
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Sun Jul 8 14:55:31 2012 -0700
+
+    Check for expired tokens during authentication.
+    
+    Fixes issue #4.
+
+commit df30fe0887e5ce74120459ad3585f7658252be13
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Tue Jul 3 02:29:22 2012 -0700
+
+    Added note about unit tests.
+
+commit afc7a64ff425a71092a61bb7c7f9b229886c5d48
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Tue Jul 3 02:27:34 2012 -0700
+
+    Fixed README typo.
+
+commit 9962375e0c5209ff82b7d6b5fda92bfec8dc4e1c
+Author: Gabriel Hurley <gabriel@strikeawe.com>
+Date:   Tue Jul 3 02:25:01 2012 -0700
+
+    Initial commit.
