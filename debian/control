@@ -12,8 +12,7 @@ Build-Depends: debhelper (>= 8),
  python-setuptools
 Build-Depends-Indep: python-django,
  python-keystoneclient,
- python-mox,
- python-setuptools
+ python-mox
 Standards-Version: 3.9.3
 Vcs-Git: git://git.debian.org/openstack/python-django-openstack-auth.git
 Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git;a=summary 
