@@ -1,5 +1,6 @@
 """ Module defining the Django auth backend class for the Keystone API. """
 
+import hashlib
 import logging
 
 from django.utils.translation import ugettext as _
@@ -10,7 +11,7 @@ from keystoneclient.v2_0.tokens import Token, TokenManager
 
 from .exceptions import KeystoneAuthException
 from .user import create_user_from_token
-from .utils import check_token_expiration
+from .utils import check_token_expiration, is_ans1_token
 
 
 LOG = logging.getLogger(__name__)
@@ -65,7 +66,9 @@ class KeystoneBackend(object):
             unscoped_token = Token(TokenManager(None),
                                    unscoped_token_data,
                                    loaded=True)
-        except keystone_exceptions.Unauthorized:
+        except (keystone_exceptions.Unauthorized,
+                keystone_exceptions.Forbidden,
+                keystone_exceptions.NotFound):
             msg = _('Invalid user name or password.')
             raise KeystoneAuthException(msg)
         except (keystone_exceptions.ClientException,
@@ -94,6 +97,9 @@ class KeystoneBackend(object):
         while tenants:
             tenant = tenants.pop()
             try:
+                client = keystone_client.Client(tenant_id=tenant.id,
+                                                token=unscoped_token.id,
+                                                auth_url=auth_url)
                 token = client.tokens.authenticate(username=username,
                                                    token=unscoped_token.id,
                                                    tenant_id=tenant.id)
@@ -110,9 +116,14 @@ class KeystoneBackend(object):
         self.check_auth_expiry(token)
 
         # If we made it here we succeeded. Create our User!
-        user = create_user_from_token(request, token, client.management_url)
+        user = create_user_from_token(request,
+                                      token,
+                                      client.service_catalog.url_for())
 
         if request is not None:
+            if is_ans1_token(unscoped_token.id):
+                hashed_token = hashlib.md5(unscoped_token.id).hexdigest()
+                unscoped_token._info['token']['id'] = hashed_token
             request.session['unscoped_token'] = unscoped_token.id
             request.user = user
 

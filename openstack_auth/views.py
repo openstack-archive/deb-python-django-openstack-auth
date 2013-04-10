@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 
 from keystoneclient.v2_0 import client as keystone_client
+from keystoneclient import exceptions as keystone_exceptions
 
 from .forms import Login
 from .user import set_session_from_user, create_user_from_token
@@ -54,8 +55,9 @@ def login(request):
     # will erase it if we set it earlier.
     if request.user.is_authenticated():
         set_session_from_user(request, request.user)
+        regions = dict(Login.get_region_choices())
         region = request.user.endpoint
-        region_name = dict(Login.get_region_choices()).get(region)
+        region_name = regions.get(region)
         request.session['region_endpoint'] = region
         request.session['region_name'] = region_name
     return res
@@ -73,8 +75,13 @@ def switch(request, tenant_id):
               % (tenant_id, request.user.username))
     endpoint = request.user.endpoint
     client = keystone_client.Client(endpoint=endpoint)
-    token = client.tokens.authenticate(tenant_id=tenant_id,
-                                       token=request.user.token.id)
-    user = create_user_from_token(request, token, endpoint)
-    set_session_from_user(request, user)
+    try:
+        token = client.tokens.authenticate(tenant_id=tenant_id,
+                                        token=request.user.token.id)
+    except keystone_exceptions.ClientException:
+        token = None
+        LOG.exception('An error occurred while switching sessions.')
+    if token:
+        user = create_user_from_token(request, token, endpoint)
+        set_session_from_user(request, user)
     return shortcuts.redirect(settings.LOGIN_REDIRECT_URL)
