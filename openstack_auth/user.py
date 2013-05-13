@@ -2,6 +2,7 @@ import hashlib
 import logging
 
 from django.contrib.auth.models import AnonymousUser
+from django.conf import settings
 
 from keystoneclient.v2_0 import client as keystone_client
 from keystoneclient import exceptions as keystone_exceptions
@@ -16,6 +17,10 @@ def set_session_from_user(request, user):
     if is_ans1_token(user.token.id):
         hashed_token = hashlib.md5(user.token.id).hexdigest()
         user.token._info['token']['id'] = hashed_token
+    if 'token_list' not in request.session:
+        request.session['token_list'] = []
+    token_tuple = (user.endpoint, user.token.id)
+    request.session['token_list'].append(token_tuple)
     request.session['token'] = user.token._info
     request.session['user_id'] = user.id
     request.session['region_endpoint'] = user.endpoint
@@ -64,6 +69,7 @@ class User(AnonymousUser):
                     service_catalog=None, tenant_name=None, roles=None,
                     authorized_tenants=None, endpoint=None, enabled=False):
         self.id = id
+        self.pk = id
         self.token = token
         self.username = user
         self.tenant_id = tenant_id
@@ -114,13 +120,16 @@ class User(AnonymousUser):
     @property
     def authorized_tenants(self):
         """ Returns a memoized list of tenants this user may access. """
+        insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
+
         if self.is_authenticated() and self._authorized_tenants is None:
             endpoint = self.endpoint
             token = self.token
             try:
                 client = keystone_client.Client(username=self.username,
                                                 auth_url=endpoint,
-                                                token=token.id)
+                                                token=token.id,
+                                                insecure=insecure)
                 self._authorized_tenants = client.tenants.list()
             except (keystone_exceptions.ClientException,
                     keystone_exceptions.AuthorizationFailure):
@@ -138,3 +147,53 @@ class User(AnonymousUser):
     def delete(*args, **kwargs):
         # Presume we can't write to Keystone.
         pass
+
+    # Check for OR'd permission rules, check that user has one of the
+    # required permission.
+    def has_a_matching_perm(self, perm_list, obj=None):
+        """
+        Returns True if the user has one of the specified permissions. If
+        object is passed, it checks if the user has any of the required perms
+        for this object.
+        """
+        # If there are no permissions to check, just return true
+        if not perm_list:
+            return True
+        # Check that user has at least one of the required permissions.
+        for perm in perm_list:
+            if self.has_perm(perm, obj):
+                return True
+        return False
+
+    # Override the default has_perms method. Allowing for more
+    # complex combinations of permissions.  Will check for logical AND of
+    # all top level permissions.  Will use logical OR for all first level
+    # tuples (check that use has one permissions in the tuple)
+    #
+    # Examples:
+    #   Checks for all required permissions
+    #   ('openstack.roles.admin', 'openstack.roles.L3-support')
+    #
+    #   Checks for admin AND (L2 or L3)
+    #   ('openstack.roles.admin', ('openstack.roles.L3-support',
+    #                              'openstack.roles.L2-support'),)
+    def has_perms(self, perm_list, obj=None):
+        """
+        Returns True if the user has all of the specified permissions.
+        Tuples in the list will possess the required permissions if
+        the user has a permissions matching one of the elements of
+        that tuple
+        """
+        # If there are no permissions to check, just return true
+        if not perm_list:
+            return True
+        for perm in perm_list:
+            if isinstance(perm, basestring):
+                # check that the permission matches
+                if not self.has_perm(perm, obj):
+                    return False
+            else:
+                # check that a permission in the tuple matches
+                if not self.has_a_matching_perm(perm, obj):
+                    return False
+        return True

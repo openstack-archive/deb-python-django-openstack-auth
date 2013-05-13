@@ -1,5 +1,7 @@
 import logging
 
+from threading import Thread
+
 from django import shortcuts
 from django.conf import settings
 from django.contrib.auth import REDIRECT_FIELD_NAME
@@ -10,6 +12,11 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.utils.functional import curry
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
+
+try:
+    from django.utils.http import is_safe_url
+except ImportError:
+    from .utils import is_safe_url
 
 from keystoneclient.v2_0 import client as keystone_client
 from keystoneclient import exceptions as keystone_exceptions
@@ -64,24 +71,54 @@ def login(request):
 
 
 def logout(request):
+    LOG.info('User logging out.')
+    if 'token_list' in request.session:
+        t = Thread(target=delete_all_tokens,
+                   args=(list(request.session['token_list']),))
+        t.start()
     """ Securely logs a user out. """
     return django_logout(request)
 
 
+def delete_all_tokens(token_list):
+    insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
+    for token_tuple in token_list:
+        try:
+            endpoint = token_tuple[0]
+            token = token_tuple[1]
+            client = keystone_client.Client(endpoint=endpoint,
+                                            token=token,
+                                            insecure=insecure)
+            client.tokens.delete(token=token)
+        except keystone_exceptions.ClientException as e:
+            LOG.info('Could not delete token')
+
+
 @login_required
-def switch(request, tenant_id):
+def switch(request, tenant_id, redirect_field_name=REDIRECT_FIELD_NAME):
     """ Switches an authenticated user from one tenant to another. """
     LOG.debug('Switching to tenant %s for user "%s".'
               % (tenant_id, request.user.username))
+    insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
     endpoint = request.user.endpoint
-    client = keystone_client.Client(endpoint=endpoint)
+    client = keystone_client.Client(endpoint=endpoint,
+                                    insecure=insecure)
     try:
         token = client.tokens.authenticate(tenant_id=tenant_id,
                                         token=request.user.token.id)
+        LOG.info('Token rescoping successful.')
     except keystone_exceptions.ClientException:
+        LOG.warning('Token rescoping failed.')
         token = None
         LOG.exception('An error occurred while switching sessions.')
+
+    # Ensure the user-originating redirection url is safe.
+    # Taken from django.contrib.auth.views.login()
+    redirect_to = request.REQUEST.get(redirect_field_name, '')
+    if not is_safe_url(url=redirect_to, host=request.get_host()):
+        redirect_to = settings.LOGIN_REDIRECT_URL
+
     if token:
         user = create_user_from_token(request, token, endpoint)
         set_session_from_user(request, user)
-    return shortcuts.redirect(settings.LOGIN_REDIRECT_URL)
+    return shortcuts.redirect(redirect_to)
