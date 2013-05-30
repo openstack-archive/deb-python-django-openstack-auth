@@ -3,25 +3,26 @@ Section: python
 Priority: optional
 Maintainer: PKG OpenStack <openstack-devel@lists.alioth.debian.org>
 Uploaders: Julien Danjou <acid@debian.org>,
-        Thomas Goirand <zigo@debian.org>,
-        Ghe Rivero <ghe.rivero@stackops.com>,
-	Mehdi Abaakouk <sileht@sileht.net>
+           Thomas Goirand <zigo@debian.org>,
+           Ghe Rivero <ghe.rivero@stackops.com>,
+           Mehdi Abaakouk <sileht@sileht.net>
 Build-Depends: debhelper (>= 8),
- openstack-pkg-tools,
- python-all (>= 2.6.6-3~),
- python-setuptools
-Build-Depends-Indep: python-django,
- python-keystoneclient,
- python-mox
+               openstack-pkg-tools,
+               python-all (>= 2.6.6-3~),
+               python-setuptools
+Build-Depends-Indep: python-django, python-keystoneclient, python-mox
 Standards-Version: 3.9.3
 Vcs-Git: git://git.debian.org/openstack/python-django-openstack-auth.git
-Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git;a=summary 
+Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git;a=summary
 Homepage: http://pypi.python.org/pypi/django_openstack_auth
 
 Package: python-openstack-auth
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: ${python:Depends}, ${misc:Depends}, python-keystoneclient, python-django
+Depends: python-django,
+         python-keystoneclient,
+         ${misc:Depends},
+         ${python:Depends}
 Description: Django authentication backend for Openstack
  Django authentication backend for use with the OpenStack Keystone Identity
  backend. This Python module is used by Horizon (the Openstack Dashport web

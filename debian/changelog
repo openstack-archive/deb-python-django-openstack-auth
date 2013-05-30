@@ -1,3 +1,9 @@
+python-django-openstack-auth (1.0.6+20130426+git+fcee315e16-2) UNRELEASED; urgency=low
+
+  * Ran wrap-and-sort.
+
+ -- Thomas Goirand <zigo@debian.org>  Thu, 30 May 2013 13:52:40 +0800
+
 python-django-openstack-auth (1.0.6+20130426+git+fcee315e16-1) unstable; urgency=low
 
   * Uploading to unstable.
