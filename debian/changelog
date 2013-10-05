@@ -9,6 +9,7 @@ python-django-openstack-auth (1.0.11-1) unstable; urgency=low
 
   * Ran wrap-and-sort.
   * New upstream release.
+  * Standards-Version: is now 3.9.4
 
  -- Thomas Goirand <zigo@debian.org>  Thu, 27 Jun 2013 16:24:18 +0800
 

@@ -17,7 +17,7 @@ Build-Depends-Indep: python-babel,
                      python-mox,
                      python-oslo.sphinx,
                      python-sphinx (>= 1.1.2)
-Standards-Version: 3.9.3
+Standards-Version: 3.9.4
 Vcs-Git: git://git.debian.org/openstack/python-django-openstack-auth.git
 Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git;a=summary
 Homepage: http://pypi.python.org/pypi/django_openstack_auth
