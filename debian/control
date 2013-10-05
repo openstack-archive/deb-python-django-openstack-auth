@@ -9,8 +9,14 @@ Uploaders: Julien Danjou <acid@debian.org>,
 Build-Depends: debhelper (>= 8),
                openstack-pkg-tools,
                python-all (>= 2.6.6-3~),
+               python-pbr (>= 0.5.21),
                python-setuptools
-Build-Depends-Indep: python-django, python-keystoneclient, python-mox
+Build-Depends-Indep: python-babel,
+                     python-django (>= 1.4),
+                     python-keystoneclient (>= 1:0.3.2),
+                     python-mox,
+                     python-oslo.sphinx,
+                     python-sphinx (>= 1.1.2)
 Standards-Version: 3.9.3
 Vcs-Git: git://git.debian.org/openstack/python-django-openstack-auth.git
 Vcs-Browser: http://git.debian.org/?p=openstack/python-django-openstack-auth.git;a=summary
@@ -19,8 +25,8 @@ Homepage: http://pypi.python.org/pypi/django_openstack_auth
 Package: python-openstack-auth
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python-django,
-         python-keystoneclient,
+Depends: python-django (>= 1.4),
+         python-keystoneclient (>= 1:0.3.2),
          ${misc:Depends},
          ${python:Depends}
 Description: Django authentication backend for Openstack

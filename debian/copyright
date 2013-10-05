@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: python-django-openstack-auth
-Source: https://github.com/gabrielhurley/django_openstack_auth.git
+Source: https://github.com/openstack/django_openstack_auth.git
 
 Files: debian/*
 Copyright: (c) 2012, Canonical Ltd

@@ -2,8 +2,7 @@
 
 #export DH_VERBOSE=1
 
-UPSTREAM_GIT = git://github.com/gabrielhurley/django_openstack_auth.git
-
+UPSTREAM_GIT = git://github.com/openstack/django_openstack_auth.git
 include /usr/share/openstack-pkg-tools/pkgos.make
 
 %:
