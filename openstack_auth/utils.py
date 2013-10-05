@@ -1,3 +1,16 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import urlparse
 
 from django.conf import settings
@@ -5,7 +18,9 @@ from django.contrib import auth
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import middleware
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+
+from keystoneclient.v2_0 import client as client_v2
+from keystoneclient.v3 import client as client_v3
 
 
 """
@@ -49,7 +64,7 @@ def check_token_expiration(token):
 
     Returns ``True`` if the token has not yet expired, otherwise ``False``.
     """
-    expiration = parse_datetime(token.expires)
+    expiration = token.expires
     if settings.USE_TZ and timezone.is_naive(expiration):
         # Presumes that the Keystone is using UTC.
         expiration = timezone.make_aware(expiration, timezone.utc)
@@ -121,3 +136,28 @@ def is_safe_url(url, host=None):
         return False
     netloc = urlparse.urlparse(url)[1]
     return not netloc or netloc == host
+
+
+# Helper for figuring out keystone version
+# Implementation will change when API version discovery is available
+def get_keystone_version():
+    return getattr(settings, 'OPENSTACK_API_VERSIONS', {}).get('identity', 2.0)
+
+
+def get_keystone_client():
+    if get_keystone_version() < 3:
+        return client_v2
+    else:
+        return client_v3
+
+
+def get_project_list(*args, **kwargs):
+    if get_keystone_version() < 3:
+        client = get_keystone_client().Client(*args, **kwargs)
+        return client.tenants.list()
+    else:
+        auth_url = kwargs.get('auth_url', '').replace('v2.0', 'v3')
+        kwargs['auth_url'] = auth_url
+        client = get_keystone_client().Client(*args, **kwargs)
+        client.management_url = auth_url
+        return client.projects.list(user=kwargs.get('user_id'))

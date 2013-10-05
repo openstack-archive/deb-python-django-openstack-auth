@@ -1,0 +1,59 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# 
+# Translators:
+# belmoreira <belmiro.moreira@cern.ch>, 2013
+msgid ""
+msgstr ""
+"Project-Id-Version: Horizon\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-09-11 13:43+0800\n"
+"PO-Revision-Date: 2013-09-13 21:02+0000\n"
+"Last-Translator: belmoreira <belmiro.moreira@cern.ch>\n"
+"Language-Team: Portuguese (http://www.transifex.com/projects/p/openstack/language/pt/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: backend.py:44
+msgid "The authentication token issued by the Identity service has expired."
+msgstr "O token de autenticação expirou."
+
+#: backend.py:92
+msgid "Invalid user name or password."
+msgstr "Utilizador ou password inválida."
+
+#: backend.py:97
+msgid "An error occurred authenticating. Please try again later."
+msgstr "Ocorreu um erro de autenticação. Por favor, tente novamente."
+
+#: backend.py:119
+msgid "Unable to retrieve authorized projects."
+msgstr "Não foi possível obter os projetos."
+
+#: backend.py:124
+msgid "You are not authorized for any projects."
+msgstr "Não possui autorização para nenhum projeto."
+
+#: backend.py:143
+msgid "Unable to authenticate to any available projects."
+msgstr "Não foi possível autenticar em nenhum projeto."
+
+#: forms.py:48
+msgid "Region"
+msgstr "Região"
+
+#: forms.py:49
+msgid "User Name"
+msgstr "Nome do Utilizador"
+
+#: forms.py:50
+msgid "Password"
+msgstr "Password"
+
+#: forms.py:59
+msgid "Domain"
+msgstr "Domínio"

@@ -1,0 +1,59 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# 
+# Translators:
+# toMeloos <tom@server.biz>, 2013
+msgid ""
+msgstr ""
+"Project-Id-Version: Horizon\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-09-11 13:43+0800\n"
+"PO-Revision-Date: 2013-09-19 10:01+0000\n"
+"Last-Translator: toMeloos <tom@server.biz>\n"
+"Language-Team: Dutch (Netherlands) (http://www.transifex.com/projects/p/openstack/language/nl_NL/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl_NL\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: backend.py:44
+msgid "The authentication token issued by the Identity service has expired."
+msgstr "De door de identiteitsdienst verstrekte authenticatietoken is verlopen."
+
+#: backend.py:92
+msgid "Invalid user name or password."
+msgstr "Ongeldige gebruikersnaam of wachtwoord."
+
+#: backend.py:97
+msgid "An error occurred authenticating. Please try again later."
+msgstr "Er is een fout opgetreden bij de verificatie. Probeert u het later nog eens."
+
+#: backend.py:119
+msgid "Unable to retrieve authorized projects."
+msgstr "Niet in staat om de geauthentificeerde projecten op te halen."
+
+#: backend.py:124
+msgid "You are not authorized for any projects."
+msgstr "U bent voor geen enkel project gemachtigd."
+
+#: backend.py:143
+msgid "Unable to authenticate to any available projects."
+msgstr "Niet in staat u te authenticeren bij enig beschikbaar project."
+
+#: forms.py:48
+msgid "Region"
+msgstr "Regio"
+
+#: forms.py:49
+msgid "User Name"
+msgstr "Gebruikersnaam"
+
+#: forms.py:50
+msgid "Password"
+msgstr "Wachtwoord"
+
+#: forms.py:59
+msgid "Domain"
+msgstr "Domein"
