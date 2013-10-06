@@ -13,6 +13,7 @@ Build-Depends: debhelper (>= 8),
                python-setuptools
 Build-Depends-Indep: python-babel,
                      python-coverage (>= 3.4),
+                     python-hacking,
                      python-django (>= 1.4),
                      python-keystoneclient (>= 1:0.3.2),
                      python-mox,
