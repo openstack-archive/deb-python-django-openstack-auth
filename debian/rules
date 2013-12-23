@@ -10,5 +10,9 @@ export OSLO_PACKAGE_VERSION=$(VERSION)
 %:
 	dh $@  --with python2
 
-#override_dh_auto_test:
-#	for pyversion in $(shell pyversions -r); do $$pyversion setup.py test; done
+ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
+override_dh_auto_test:
+	set -e && for pyversion in $(shell pyversions -r); do \
+		PYTHONPATH=. $$pyversion openstack_auth/tests/run_tests.py ; \
+	done
+endif
