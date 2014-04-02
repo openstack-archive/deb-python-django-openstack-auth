@@ -74,8 +74,13 @@ class KeystoneBackend(object):
         LOG.debug('Beginning user authentication for user "%s".' % username)
 
         insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
+        ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
         endpoint_type = getattr(
             settings, 'OPENSTACK_ENDPOINT_TYPE', 'publicURL')
+
+        # keystone client v3 does not support logging in on the v2 url any more
+        if get_keystone_version() >= 3:
+            auth_url = auth_url.replace('v2.0', 'v3')
 
         keystone_client = get_keystone_client()
         try:
@@ -85,6 +90,7 @@ class KeystoneBackend(object):
                 password=password,
                 auth_url=auth_url,
                 insecure=insecure,
+                cacert=ca_cert,
                 debug=settings.DEBUG)
 
             unscoped_auth_ref = client.auth_ref
@@ -135,6 +141,7 @@ class KeystoneBackend(object):
                         token=unscoped_auth_ref.auth_token,
                         auth_url=auth_url,
                         insecure=insecure,
+                        cacert=ca_cert,
                         debug=settings.DEBUG)
                     auth_ref = client.auth_ref
                     break

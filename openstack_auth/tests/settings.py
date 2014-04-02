@@ -31,7 +31,7 @@ MIDDLEWARE_CLASSES = [
 
 AUTHENTICATION_BACKENDS = ['openstack_auth.backend.KeystoneBackend']
 
-OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v2.0"
+OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v3"
 
 ROOT_URLCONF = 'openstack_auth.tests.urls'
 
@@ -40,7 +40,7 @@ LOGIN_REDIRECT_URL = '/'
 SECRET_KEY = 'badcafe'
 
 OPENSTACK_API_VERSIONS = {
-    "identity": 2.0
+    "identity": 3
 }
 
 USE_TZ = True
@@ -48,3 +48,6 @@ USE_TZ = True
 OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = False
 
 OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = 'domain'
+
+# NOTE(saschpe): The openstack_auth.user.Token object isn't JSON-serializable ATM
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'

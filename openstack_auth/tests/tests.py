@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+
 import mox
 
 from django import test
@@ -22,9 +24,9 @@ from keystoneclient import exceptions as keystone_exceptions
 from keystoneclient.v2_0 import client as client_v2
 from keystoneclient.v3 import client as client_v3
 
-from .data_v2 import generate_test_data as data_v2
-from .data_v3 import generate_test_data as data_v3
-import copy
+from openstack_auth.tests.data_v2 import generate_test_data as data_v2
+from openstack_auth.tests.data_v3 import generate_test_data as data_v3
+from openstack_auth.utils import get_project_list
 
 
 DEFAULT_DOMAIN = settings.OPENSTACK_KEYSTONE_DEFAULT_DOMAIN
@@ -43,6 +45,8 @@ class OpenStackAuthTestsV2(test.TestCase):
         self.keystone_client_scoped = self.ks_client_module.Client(
             endpoint=endpoint,
             auth_ref=self.data.scoped_access_info)
+        settings.OPENSTACK_API_VERSIONS['identity'] = 2.0
+        settings.OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v2.0"
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -66,12 +70,14 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -108,6 +114,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
@@ -115,12 +122,14 @@ class OpenStackAuthTestsV2(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_one.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -155,6 +164,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
@@ -162,12 +172,14 @@ class OpenStackAuthTestsV2(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_one.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
@@ -203,6 +215,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn([])
@@ -237,6 +250,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False).AndRaise(exc)
 
         self.mox.ReplayAll()
@@ -268,6 +282,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False).AndRaise(exc)
 
         self.mox.ReplayAll()
@@ -308,12 +323,14 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -322,6 +339,7 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      tenant_id=tenant.id,
                                      token=scoped.auth_token,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
 
@@ -375,12 +393,14 @@ class OpenStackAuthTestsV2(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.tenant_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -418,6 +438,35 @@ class OpenStackAuthTestsV2(test.TestCase):
 
     def test_switch_region_with_next(self, next=None):
         self.test_switch_region(next='/next_url')
+
+    def test_tenant_sorting(self):
+        tenants = [self.data.tenant_two, self.data.tenant_one]
+        expected_tenants = [self.data.tenant_one, self.data.tenant_two]
+        user = self.data.user
+        unscoped = self.data.unscoped_access_info
+
+        self.mox.StubOutWithMock(self.ks_client_module, "Client")
+        self.mox.StubOutWithMock(self.keystone_client_unscoped.tenants, "list")
+
+        self.ks_client_module.Client(user_id=user.id,
+                                     auth_url=settings.OPENSTACK_KEYSTONE_URL,
+                                     token=unscoped.auth_token,
+                                     insecure=False,
+                                     cacert=None,
+                                     debug=False)\
+                .AndReturn(self.keystone_client_unscoped)
+        self.keystone_client_unscoped.tenants.list().AndReturn(tenants)
+
+        self.mox.ReplayAll()
+
+        tenant_list = get_project_list(
+            user_id=user.id,
+            auth_url=settings.OPENSTACK_KEYSTONE_URL,
+            token=unscoped.auth_token,
+            insecure=False,
+            cacert=None,
+            debug=False)
+        self.assertEqual(tenant_list, expected_tenants)
 
 
 def EndpointMetaFactory(endpoint_type):
@@ -501,6 +550,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -508,6 +558,7 @@ class OpenStackAuthTestsV3(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -543,6 +594,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -551,12 +603,14 @@ class OpenStackAuthTestsV3(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_one.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -592,6 +646,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -600,12 +655,14 @@ class OpenStackAuthTestsV3(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_one.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndRaise(exc)
@@ -642,6 +699,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False)\
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -677,6 +735,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False).AndRaise(exc)
 
         self.mox.ReplayAll()
@@ -708,6 +767,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False).AndRaise(exc)
 
         self.mox.ReplayAll()
@@ -749,6 +809,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -756,6 +817,7 @@ class OpenStackAuthTestsV3(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -763,6 +825,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      tenant_id=project.id,
                                      token=scoped.auth_token,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
 
@@ -817,6 +880,7 @@ class OpenStackAuthTestsV3(test.TestCase):
                                      username=user.name,
                                      user_domain_name=DEFAULT_DOMAIN,
                                      insecure=False,
+                                     cacert=None,
                                      debug=False) \
                 .AndReturn(self.keystone_client_unscoped)
         self.keystone_client_unscoped.projects.list(user=user.id) \
@@ -824,6 +888,7 @@ class OpenStackAuthTestsV3(test.TestCase):
         self.ks_client_module.Client(auth_url=settings.OPENSTACK_KEYSTONE_URL,
                                      tenant_id=self.data.project_two.id,
                                      insecure=False,
+                                     cacert=None,
                                      token=unscoped.auth_token,
                                      debug=False) \
                 .AndReturn(self.keystone_client_scoped)
@@ -861,6 +926,36 @@ class OpenStackAuthTestsV3(test.TestCase):
 
     def test_switch_region_with_next(self, next=None):
         self.test_switch_region(next='/next_url')
+
+    def test_tenant_sorting(self):
+        projects = [self.data.project_two, self.data.project_one]
+        expected_projects = [self.data.project_one, self.data.project_two]
+        user = self.data.user
+        unscoped = self.data.unscoped_access_info
+
+        self.mox.StubOutWithMock(self.ks_client_module, "Client")
+        self.mox.StubOutWithMock(self.keystone_client_unscoped.projects, "list")
+
+        self.ks_client_module.Client(user_id=user.id,
+                                     auth_url=settings.OPENSTACK_KEYSTONE_URL,
+                                     token=unscoped.auth_token,
+                                     insecure=False,
+                                     cacert=None,
+                                     debug=False)\
+                .AndReturn(self.keystone_client_unscoped)
+        self.keystone_client_unscoped.projects.list(user=user.id) \
+                .AndReturn(projects)
+
+        self.mox.ReplayAll()
+
+        project_list = get_project_list(
+            user_id=user.id,
+            auth_url=settings.OPENSTACK_KEYSTONE_URL,
+            token=unscoped.auth_token,
+            insecure=False,
+            cacert=None,
+            debug=False)
+        self.assertEqual(project_list, expected_projects)
 
 
 class OpenStackAuthTestsV3WithPublicURL(OpenStackAuthTestsV3):

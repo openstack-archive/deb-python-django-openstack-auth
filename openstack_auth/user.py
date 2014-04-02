@@ -33,6 +33,9 @@ def set_session_from_user(request, user):
     request.session['user_id'] = user.id
     request.session['region_endpoint'] = user.endpoint
     request.session['services_region'] = user.services_region
+    # Update the user object cached in the request
+    request._cached_user = user
+    request.user = user
 
 
 def create_user_from_token(request, token, endpoint, services_region=None):
@@ -219,6 +222,7 @@ class User(AnonymousUser):
     def authorized_tenants(self):
         """ Returns a memoized list of tenants this user may access. """
         insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
+        ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
 
         if self.is_authenticated() and self._authorized_tenants is None:
             endpoint = self.endpoint
@@ -229,6 +233,7 @@ class User(AnonymousUser):
                     auth_url=endpoint,
                     token=token.id,
                     insecure=insecure,
+                    cacert=ca_cert,
                     debug=settings.DEBUG)
             except (keystone_exceptions.ClientException,
                     keystone_exceptions.AuthorizationFailure):
