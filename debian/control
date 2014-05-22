@@ -20,7 +20,7 @@ Build-Depends-Indep: python-babel (>= 1.3),
                      python-oslosphinx,
                      python-six (>= 1.5.2),
                      python-sphinx (>= 1.1.2)
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 Vcs-Git: git://anonscm.debian.org/openstack/python-django-openstack-auth.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-django-openstack-auth.git;a=summary
 Homepage: http://pypi.python.org/pypi/django_openstack_auth
