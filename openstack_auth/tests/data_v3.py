@@ -11,19 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import requests
+import datetime
 import uuid
 
-from datetime import timedelta
+import requests
 
 from django.utils import datetime_safe
 
-from keystoneclient.access import AccessInfo
-from keystoneclient.service_catalog import ServiceCatalog
-from keystoneclient.v3.domains import Domain, DomainManager
-from keystoneclient.v3.roles import Role, RoleManager
-from keystoneclient.v3.projects import Project, ProjectManager
-from keystoneclient.v3.users import User, UserManager
+from keystoneclient import access
+from keystoneclient import service_catalog
+from keystoneclient.v3 import domains
+from keystoneclient.v3 import projects
+from keystoneclient.v3 import roles
+from keystoneclient.v3 import users
 
 
 class TestDataContainer(object):
@@ -39,7 +39,7 @@ class TestResponse(requests.Response):
         self._text = None
         super(TestResponse, self)
         if isinstance(data, dict):
-            self.status_code = data.get('status_code', None)
+            self.status_code = data.get('status_code', 200)
             self.headers = data.get('headers', None)
             # Fake the text attribute to streamline Response creation
             self._text = data.get('text', None)
@@ -78,7 +78,7 @@ def generate_test_data():
                 'url': 'http://public.localhost:5000/v3',
                 'region': 'RegionOne',
                 'interface': 'public',
-                 'id': uuid.uuid4().hex
+                'id': uuid.uuid4().hex
             }
         ]
     }
@@ -88,7 +88,8 @@ def generate_test_data():
                    'name': 'domain',
                    'description': '',
                    'enabled': True}
-    test_data.domain = Domain(DomainManager(None), domain_dict, loaded=True)
+    test_data.domain = domains.Domain(domains.DomainManager(None),
+                                      domain_dict, loaded=True)
 
     # Users
     user_dict = {'id': uuid.uuid4().hex,
@@ -98,82 +99,83 @@ def generate_test_data():
                  'domain_id': domain_dict['id'],
                  'token': '',
                  'enabled': True}
-    test_data.user = User(UserManager(None), user_dict, loaded=True)
+    test_data.user = users.User(users.UserManager(None),
+                                user_dict, loaded=True)
 
     # Projects
     project_dict_1 = {'id': uuid.uuid4().hex,
-                     'name': 'tenant_one',
-                     'description': '',
-                     'domain_id': domain_dict['id'],
-                     'enabled': True}
+                      'name': 'tenant_one',
+                      'description': '',
+                      'domain_id': domain_dict['id'],
+                      'enabled': True}
     project_dict_2 = {'id': uuid.uuid4().hex,
-                     'name': 'tenant_two',
-                     'description': '',
-                     'domain_id': domain_dict['id'],
-                     'enabled': False}
-    test_data.project_one = Project(ProjectManager(None),
-                                  project_dict_1,
-                                  loaded=True)
-    test_data.project_two = Project(ProjectManager(None),
-                                  project_dict_2,
-                                  loaded=True)
+                      'name': 'tenant_two',
+                      'description': '',
+                      'domain_id': domain_dict['id'],
+                      'enabled': False}
+    test_data.project_one = projects.Project(projects.ProjectManager(None),
+                                             project_dict_1,
+                                             loaded=True)
+    test_data.project_two = projects.Project(projects.ProjectManager(None),
+                                             project_dict_2,
+                                             loaded=True)
 
     # Roles
     role_dict = {'id': uuid.uuid4().hex,
                  'name': 'Member'}
-    test_data.role = Role(RoleManager, role_dict)
+    test_data.role = roles.Role(roles.RoleManager, role_dict)
 
     nova_service = {
         'type': 'compute',
         'id': uuid.uuid4().hex,
         'endpoints': [
             {
-                'url': 'http://nova-admin.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova-admin.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionOne',
                 'interface': 'admin',
                 'id': uuid.uuid4().hex,
             },
             {
-                'url': 'http://nova-internal.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova-internal.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionOne',
                 'interface': 'internal',
                 'id': uuid.uuid4().hex
             },
             {
-                'url': 'http://nova-public.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova-public.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionOne',
                 'interface': 'public',
-                 'id': uuid.uuid4().hex
+                'id': uuid.uuid4().hex
             },
             {
-                'url': 'http://nova2-admin.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova2-admin.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionTwo',
                 'interface': 'admin',
                 'id': uuid.uuid4().hex,
             },
             {
-                'url': 'http://nova2-internal.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova2-internal.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionTwo',
                 'interface': 'internal',
                 'id': uuid.uuid4().hex
             },
             {
-                'url': 'http://nova2-public.localhost:8774/v2.0/%s' \
-                       % (project_dict_1['id']),
+                'url': ('http://nova2-public.localhost:8774/v2.0/%s'
+                        % (project_dict_1['id'])),
                 'region': 'RegionTwo',
                 'interface': 'public',
-                 'id': uuid.uuid4().hex
+                'id': uuid.uuid4().hex
             }
         ]
     }
 
     # Tokens
-    tomorrow = datetime_safe.datetime.now() + timedelta(days=1)
+    tomorrow = datetime_safe.datetime.now() + datetime.timedelta(days=1)
     expiration = datetime_safe.datetime.isoformat(tomorrow)
     auth_token = uuid.uuid4().hex
     auth_response_headers = {
@@ -209,7 +211,7 @@ def generate_test_data():
         }
     }
 
-    test_data.scoped_access_info = AccessInfo.factory(
+    test_data.scoped_access_info = access.AccessInfo.factory(
         resp=auth_response,
         body=scoped_token_dict
     )
@@ -230,13 +232,13 @@ def generate_test_data():
         }
     }
 
-    test_data.unscoped_access_info = AccessInfo.factory(
+    test_data.unscoped_access_info = access.AccessInfo.factory(
         resp=auth_response,
         body=unscoped_token_dict
     )
 
     # Service Catalog
-    test_data.service_catalog = ServiceCatalog.factory({
+    test_data.service_catalog = service_catalog.ServiceCatalog.factory({
         'methods': ['password'],
         'user': {},
         'catalog': [keystone_service, nova_service],

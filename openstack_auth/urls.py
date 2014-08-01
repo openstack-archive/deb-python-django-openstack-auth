@@ -11,14 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from django.conf.urls import patterns, url
+from django.conf.urls import patterns
+from django.conf.urls import url
 
-from .utils import patch_middleware_get_user
+from openstack_auth import utils
 
-patch_middleware_get_user()
+utils.patch_middleware_get_user()
 
 
-urlpatterns = patterns('openstack_auth.views',
+urlpatterns = patterns(
+    'openstack_auth.views',
     url(r"^login/$", "login", name='login'),
     url(r"^logout/$", 'logout', name='logout'),
     url(r'^switch/(?P<tenant_id>[^/]+)/$', 'switch', name='switch_tenants'),

@@ -14,15 +14,12 @@
 import hashlib
 import logging
 
-from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
+from django.contrib.auth import models
 
 from keystoneclient import exceptions as keystone_exceptions
 
-from .utils import check_token_expiration
-from .utils import get_keystone_version
-from .utils import get_project_list
-from .utils import is_ans1_token
+from openstack_auth import utils
 
 
 LOG = logging.getLogger(__name__)
@@ -69,9 +66,9 @@ class Token(object):
         self.user = user
         self.user_domain_id = auth_ref.user_domain_id
 
-        #Token-related attributes
+        # Token-related attributes
         self.id = auth_ref.auth_token
-        if is_ans1_token(self.id):
+        if len(self.id) > 32:
             self.id = hashlib.md5(self.id).hexdigest()
         self.expires = auth_ref.expires
 
@@ -93,13 +90,13 @@ class Token(object):
         else:
             self.roles = auth_ref.get('roles', [])
 
-        if get_keystone_version() < 3:
+        if utils.get_keystone_version() < 3:
             self.serviceCatalog = auth_ref.get('serviceCatalog', [])
         else:
             self.serviceCatalog = auth_ref.get('catalog', [])
 
 
-class User(AnonymousUser):
+class User(models.AnonymousUser):
     """A User class with some extra special sauce for Keystone.
 
     In addition to the standard Django user attributes, this class also has
@@ -170,8 +167,8 @@ class User(AnonymousUser):
         self.project_id = project_id or tenant_id
         self.project_name = project_name or tenant_name
         self.service_catalog = service_catalog
-        self._services_region = services_region or \
-                                    self.default_services_region()
+        self._services_region = (services_region or
+                                 self.default_services_region())
         self.roles = roles or []
         self.endpoint = endpoint
         self.enabled = enabled
@@ -194,11 +191,12 @@ class User(AnonymousUser):
         """
         if self.token is None:
             return None
-        return not check_token_expiration(self.token)
+        return not utils.check_token_expiration(self.token)
 
     def is_authenticated(self):
         """ Checks for a valid token that has not yet expired. """
-        return self.token is not None and check_token_expiration(self.token)
+        return (self.token is not None and
+                utils.check_token_expiration(self.token))
 
     def is_anonymous(self):
         """
@@ -228,7 +226,7 @@ class User(AnonymousUser):
             endpoint = self.endpoint
             token = self.token
             try:
-                self._authorized_tenants = get_project_list(
+                self._authorized_tenants = utils.get_project_list(
                     user_id=self.id,
                     auth_url=endpoint,
                     token=token.id,
