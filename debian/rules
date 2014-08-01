@@ -16,10 +16,10 @@ override_dh_auto_install:
 		python$$pyvers setup.py install --install-layout=deb \
 			--root $(CURDIR)/debian/python-openstack-auth; \
 	done
-	set -e && for pyvers in $(PYTHON3S); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python3-openstack-auth; \
-	done
+#	set -e && for pyvers in $(PYTHON3S); do \
+#		python$$pyvers setup.py install --install-layout=deb \
+#			--root $(CURDIR)/debian/python3-openstack-auth; \
+#	done
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
