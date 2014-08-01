@@ -2,6 +2,7 @@ python-django-openstack-auth (1.1.6-1) unstable; urgency=medium
 
   * New upstream release.
   * Updated (build-)depends for this release.
+  * Do not run usless dh targets.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 01 Aug 2014 17:34:07 +0800
 
