@@ -1,3 +1,10 @@
+python-django-openstack-auth (1.1.6-3) unstable; urgency=medium
+
+  * Added Django 1.7 patches. Thanks to Raphael Hertzog for the bug report
+    and patches (Closes: #755646).
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 08 Sep 2014 17:57:15 +0000
+
 python-django-openstack-auth (1.1.6-2) unstable; urgency=medium
 
   * Removed built for Python 3 that mistakenly slipped in.

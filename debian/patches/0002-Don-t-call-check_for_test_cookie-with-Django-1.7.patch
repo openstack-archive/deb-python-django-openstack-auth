@@ -1,0 +1,33 @@
+From c745084604baa04b904047074409a6ad63a5238e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rapha=C3=ABl=20Hertzog?= <hertzog@debian.org>
+Date: Fri, 5 Sep 2014 17:30:20 +0200
+Subject: [PATCH 2/2] Don't call check_for_test_cookie with Django 1.7
+
+The Django doc says this for this method:
+
+    The undocumented check_for_test_cookie method in AuthenticationForm will be
+    removed following an accelerated deprecation. Users subclassing this form
+    should remove calls to this method, and instead ensure that their auth related
+    views are CSRF protected, which ensures that cookies are enabled.
+
+The login view in openstack_auth/views.py is CSRF protected so it should be
+fine to just drop the call with Django 1.7.
+---
+ openstack_auth/forms.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/openstack_auth/forms.py b/openstack_auth/forms.py
+index 5e46ad8..71cb4e2 100644
+--- a/openstack_auth/forms.py
++++ b/openstack_auth/forms.py
+@@ -100,5 +100,6 @@ class Login(django_auth_forms.AuthenticationForm):
+             LOG.warning(msg)
+             self.request.session.flush()
+             raise forms.ValidationError(exc)
+-        self.check_for_test_cookie()
++        if hasattr(self, 'check_for_test_cookie'):  # Dropped in django 1.7
++            self.check_for_test_cookie()
+         return self.cleaned_data
+-- 
+2.1.0
+

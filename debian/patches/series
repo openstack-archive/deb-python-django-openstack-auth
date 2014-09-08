@@ -1,0 +1,2 @@
+0001-Call-django.setup-before-running-tests-for-Django-1..patch
+0002-Don-t-call-check_for_test_cookie-with-Django-1.7.patch
