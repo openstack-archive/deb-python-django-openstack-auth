@@ -36,8 +36,8 @@ class KeystoneBackend(object):
       ``django.contrib.auth``.
     """
 
-    def check_auth_expiry(self, auth_ref):
-        if not utils.check_token_expiration(auth_ref):
+    def check_auth_expiry(self, auth_ref, margin=None):
+        if not utils.is_token_valid(auth_ref, margin):
             msg = _("The authentication token issued by the Identity service "
                     "has expired.")
             LOG.warning("The authentication token issued by the Identity "
@@ -67,7 +67,7 @@ class KeystoneBackend(object):
 
     def authenticate(self, request=None, username=None, password=None,
                      user_domain_name=None, auth_url=None):
-        """Authenticates a user via the Keystone Identity API. """
+        """Authenticates a user via the Keystone Identity API."""
         LOG.debug('Beginning user authentication for user "%s".' % username)
 
         insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
@@ -77,7 +77,11 @@ class KeystoneBackend(object):
 
         # keystone client v3 does not support logging in on the v2 url any more
         if utils.get_keystone_version() >= 3:
-            auth_url = auth_url.replace('v2.0', 'v3')
+            if utils.has_in_url_path(auth_url, "/v2.0"):
+                LOG.warning("The settings.py file points to a v2.0 keystone "
+                            "endpoint, but v3 is specified as the API version "
+                            "to use. Using v3 endpoint for authentication.")
+                auth_url = utils.url_path_replace(auth_url, "/v2.0", "/v3", 1)
 
         keystone_client = utils.get_keystone_client()
         try:
@@ -170,7 +174,7 @@ class KeystoneBackend(object):
         return user
 
     def get_group_permissions(self, user, obj=None):
-        """Returns an empty set since Keystone doesn't support "groups". """
+        """Returns an empty set since Keystone doesn't support "groups"."""
         # Keystone V3 added "groups". The Auth token response includes the
         # roles from the user's Group assignment. It should be fine just
         # returning an empty set here.
@@ -196,7 +200,7 @@ class KeystoneBackend(object):
         return role_perms | service_perms
 
     def has_perm(self, user, perm, obj=None):
-        """Returns True if the given user has the specified permission. """
+        """Returns True if the given user has the specified permission."""
         if not user.is_active:
             return False
         return perm in self.get_all_permissions(user, obj)
