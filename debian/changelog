@@ -2,6 +2,7 @@ python-django-openstack-auth (1.1.7-1) experimental; urgency=medium
 
   * New upstream release.
   * Updated (build-)depends for this release.
+  * Removes all Django 1.7 compat patches which have been applied upstream.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 24 Sep 2014 09:43:30 +0800
 
