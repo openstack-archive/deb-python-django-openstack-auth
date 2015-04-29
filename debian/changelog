@@ -1,3 +1,9 @@
+python-django-openstack-auth (1.1.7-3) unstable; urgency=medium
+
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 29 Apr 2015 13:53:21 +0000
+
 python-django-openstack-auth (1.1.7-2) experimental; urgency=medium
 
   * CVE-2014-8124: Horizon denial of service attack through login page. Applied
