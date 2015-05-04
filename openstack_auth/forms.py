@@ -21,6 +21,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.debug import sensitive_variables  # noqa
 
 from openstack_auth import exceptions
+from openstack_auth import utils
 
 
 LOG = logging.getLogger(__name__)
@@ -58,18 +59,46 @@ class Login(django_auth_forms.AuthenticationForm):
         if getattr(settings,
                    'OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT',
                    False):
-            self.fields['domain'] = forms.CharField(label=_("Domain"),
-                                                    required=True)
+            self.fields['domain'] = forms.CharField(
+                label=_("Domain"),
+                required=True,
+                widget=forms.TextInput(attrs={"autofocus": "autofocus"}))
+            self.fields['username'].widget = forms.widgets.TextInput()
             self.fields.keyOrder = ['domain', 'username', 'password', 'region']
         self.fields['region'].choices = self.get_region_choices()
         if len(self.fields['region'].choices) == 1:
             self.fields['region'].initial = self.fields['region'].choices[0][0]
             self.fields['region'].widget = forms.widgets.HiddenInput()
+        elif len(self.fields['region'].choices) > 1:
+            self.fields['region'].initial = self.request.COOKIES.get(
+                'login_region')
+
+        # if websso is enabled and keystone version supported
+        # prepend the websso_choices select input to the form
+        if utils.is_websso_enabled():
+            initial = getattr(settings, 'WEBSSO_INITIAL_CHOICE', 'credentials')
+            self.fields['auth_type'] = forms.ChoiceField(
+                label=_("Authenticate using"),
+                choices=getattr(settings, 'WEBSSO_CHOICES', ()),
+                required=False,
+                initial=initial)
+            # move auth_type to the top of the list
+            self.fields.keyOrder.pop(-1)
+            self.fields.keyOrder.insert(0, 'auth_type')
+
+        # websso is enabled, but keystone version is not supported
+        elif getattr(settings, 'WEBSSO_ENABLED', False):
+            msg = ("Websso is enabled but horizon is not configured to work " +
+                   "with keystone version 3 or above.")
+            LOG.warning(msg)
 
     @staticmethod
     def get_region_choices():
         default_region = (settings.OPENSTACK_KEYSTONE_URL, "Default Region")
-        return getattr(settings, 'AVAILABLE_REGIONS', [default_region])
+        regions = getattr(settings, 'AVAILABLE_REGIONS', [])
+        if not regions:
+            regions = [default_region]
+        return regions
 
     @sensitive_variables()
     def clean(self):
@@ -98,7 +127,6 @@ class Login(django_auth_forms.AuthenticationForm):
             msg = 'Login failed for user "%(username)s".' % \
                 {'username': username}
             LOG.warning(msg)
-            self.request.session.flush()
             raise forms.ValidationError(exc)
         if hasattr(self, 'check_for_test_cookie'):  # Dropped in django 1.7
             self.check_for_test_cookie()

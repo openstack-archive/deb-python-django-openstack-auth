@@ -13,19 +13,27 @@
 
 import datetime
 import functools
+import logging
+import sys
 
-from six.moves.urllib import parse as urlparse
-
+import django
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import middleware
 from django.contrib.auth import models
 from django.utils import decorators
 from django.utils import timezone
-
+from keystoneclient.auth.identity import v2 as v2_auth
+from keystoneclient.auth.identity import v3 as v3_auth
+from keystoneclient.auth import token_endpoint
+from keystoneclient import session
 from keystoneclient.v2_0 import client as client_v2
 from keystoneclient.v3 import client as client_v3
+import six
+from six.moves.urllib import parse as urlparse
 
+
+LOG = logging.getLogger(__name__)
 
 _PROJECT_CACHE = {}
 
@@ -151,11 +159,28 @@ def get_keystone_version():
     return getattr(settings, 'OPENSTACK_API_VERSIONS', {}).get('identity', 2.0)
 
 
+def get_session():
+    insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
+    verify = getattr(settings, 'OPENSTACK_SSL_CACERT', True)
+
+    if insecure:
+        verify = False
+
+    return session.Session(verify=verify)
+
+
 def get_keystone_client():
     if get_keystone_version() < 3:
         return client_v2
     else:
         return client_v3
+
+
+def is_websso_enabled():
+    """Websso is supported in Keystone version 3."""
+    websso_enabled = getattr(settings, 'WEBSSO_ENABLED', False)
+    keystonev3_plus = (get_keystone_version() >= 3)
+    return websso_enabled and keystonev3_plus
 
 
 def has_in_url_path(url, sub):
@@ -179,21 +204,172 @@ def url_path_replace(url, old, new, count=None):
         scheme, netloc, path.replace(old, new, *args), query, fragment))
 
 
+def fix_auth_url_version(auth_url):
+    """Fix up the auth url if an invalid version prefix was given.
+
+    People still give a v2 auth_url even when they specify that they want v3
+    authentication. Fix the URL to say v3. This should be smarter and take the
+    base, unversioned URL and discovery.
+    """
+    if get_keystone_version() >= 3:
+        if has_in_url_path(auth_url, "/v2.0"):
+            LOG.warning("The settings.py file points to a v2.0 keystone "
+                        "endpoint, but v3 is specified as the API version "
+                        "to use. Using v3 endpoint for authentication.")
+            auth_url = url_path_replace(auth_url, "/v2.0", "/v3", 1)
+
+    return auth_url
+
+
+def get_token_auth_plugin(auth_url, token, project_id=None):
+    if get_keystone_version() >= 3:
+        return v3_auth.Token(auth_url=auth_url,
+                             token=token,
+                             project_id=project_id,
+                             reauthenticate=False)
+
+    else:
+        return v2_auth.Token(auth_url=auth_url,
+                             token=token,
+                             tenant_id=project_id,
+                             reauthenticate=False)
+
+
 @memoize_by_keyword_arg(_PROJECT_CACHE, ('token', ))
 def get_project_list(*args, **kwargs):
+    is_federated = kwargs.get('is_federated', False)
+    sess = kwargs.get('session') or get_session()
+    auth_url = fix_auth_url_version(kwargs['auth_url'])
+    auth = token_endpoint.Token(auth_url, kwargs['token'])
+    client = get_keystone_client().Client(session=sess, auth=auth)
+
     if get_keystone_version() < 3:
-        auth_url = url_path_replace(
-            kwargs.get('auth_url', ''), '/v3', '/v2.0', 1)
-        kwargs['auth_url'] = auth_url
-        client = get_keystone_client().Client(*args, **kwargs)
         projects = client.tenants.list()
+    elif is_federated:
+        projects = client.federation.projects.list()
     else:
-        auth_url = url_path_replace(
-            kwargs.get('auth_url', ''), '/v2.0', '/v3', 1)
-        kwargs['auth_url'] = auth_url
-        client = get_keystone_client().Client(*args, **kwargs)
-        client.management_url = auth_url
         projects = client.projects.list(user=kwargs.get('user_id'))
 
     projects.sort(key=lambda project: project.name.lower())
     return projects
+
+
+def default_services_region(service_catalog, request=None):
+    """Returns the first endpoint region for first non-identity service.
+
+    Extracted from the service catalog.
+    """
+    if service_catalog:
+        available_regions = [get_endpoint_region(endpoint) for service
+                             in service_catalog for endpoint
+                             in service.get('endpoints', [])
+                             if (service.get('type') is not None
+                                 and service.get('type') != 'identity')]
+        if not available_regions:
+            # this is very likely an incomplete keystone setup
+            LOG.warning('No regions could be found excluding identity.')
+            available_regions = [get_endpoint_region(endpoint) for service
+                                 in service_catalog for endpoint
+                                 in service.get('endpoints', [])]
+
+            if not available_regions:
+                # if there are no region setup for any service endpoint,
+                # this is a critical problem and it's not clear how this occurs
+                LOG.error('No regions can be found in the service catalog.')
+                return None
+
+        selected_region = None
+        if request:
+            selected_region = request.COOKIES.get('services_region',
+                                                  available_regions[0])
+        if selected_region not in available_regions:
+            selected_region = available_regions[0]
+        return selected_region
+    return None
+
+
+def set_response_cookie(response, cookie_name, cookie_value):
+    """Common function for setting the cookie in the response.
+
+    Provides a common policy of setting cookies for last used project
+    and region, can be reused in other locations.
+
+    This method will set the cookie to expire in 365 days.
+    """
+    now = timezone.now()
+    expire_date = now + datetime.timedelta(days=365)
+    response.set_cookie(cookie_name, cookie_value, expires=expire_date)
+
+
+def get_endpoint_region(endpoint):
+    """Common function for getting the region from endpoint.
+
+    In Keystone V3, region has been deprecated in favor of
+    region_id.
+
+    This method provides a way to get region that works for both
+    Keystone V2 and V3.
+    """
+    return endpoint.get('region_id') or endpoint.get('region')
+
+
+if django.VERSION < (1, 7):
+    try:
+        from importlib import import_module
+    except ImportError:
+        # NOTE(jamielennox): importlib was introduced in python 2.7. This is
+        # copied from the backported importlib library. See:
+        # http://svn.python.org/projects/python/trunk/Lib/importlib/__init__.py
+
+        def _resolve_name(name, package, level):
+            """Return the absolute name of the module to be imported."""
+            if not hasattr(package, 'rindex'):
+                raise ValueError("'package' not set to a string")
+            dot = len(package)
+            for x in xrange(level, 1, -1):
+                try:
+                    dot = package.rindex('.', 0, dot)
+                except ValueError:
+                    raise ValueError("attempted relative import beyond "
+                                     "top-level package")
+            return "%s.%s" % (package[:dot], name)
+
+        def import_module(name, package=None):
+            """Import a module.
+
+            The 'package' argument is required when performing a relative
+            import. It specifies the package to use as the anchor point from
+            which to resolve the relative import to an absolute import.
+            """
+            if name.startswith('.'):
+                if not package:
+                    raise TypeError("relative imports require the "
+                                    "'package' argument")
+                level = 0
+                for character in name:
+                    if character != '.':
+                        break
+                    level += 1
+                name = _resolve_name(name[level:], package, level)
+            __import__(name)
+            return sys.modules[name]
+
+    # NOTE(jamielennox): copied verbatim from django 1.7
+    def import_string(dotted_path):
+        try:
+            module_path, class_name = dotted_path.rsplit('.', 1)
+        except ValueError:
+            msg = "%s doesn't look like a module path" % dotted_path
+            six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
+        module = import_module(module_path)
+
+        try:
+            return getattr(module, class_name)
+        except AttributeError:
+            msg = 'Module "%s" does not define a "%s" attribute/class' % (
+                dotted_path, class_name)
+            six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
+
+else:
+    from django.utils.module_loading import import_string  # noqa

@@ -10,24 +10,27 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import logging
+import re
+import time
 
 import django
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required  # noqa
 from django.contrib.auth import views as django_auth_views
+from django import http as django_http
 from django import shortcuts
 from django.utils import functional
 from django.utils import http
 from django.views.decorators.cache import never_cache  # noqa
+from django.views.decorators.csrf import csrf_exempt  # noqa
 from django.views.decorators.csrf import csrf_protect  # noqa
 from django.views.decorators.debug import sensitive_post_parameters  # noqa
-
+from keystoneclient.auth import token_endpoint
 from keystoneclient import exceptions as keystone_exceptions
-from keystoneclient.v2_0 import client as keystone_client_v2
 
+from openstack_auth import exceptions
 from openstack_auth import forms
 # This is historic and is added back in to not break older versions of
 # Horizon, fix to Horizon to remove this requirement was committed in
@@ -50,14 +53,27 @@ LOG = logging.getLogger(__name__)
 @never_cache
 def login(request, template_name=None, extra_context=None, **kwargs):
     """Logs a user in using the :class:`~openstack_auth.forms.Login` form."""
-    # If the user is already authenticated, redirect them to the
-    # dashboard straight away, unless the 'next' parameter is set as it
-    # usually indicates requesting access to a page that requires different
-    # permissions.
-    if (request.user.is_authenticated() and
-            auth.REDIRECT_FIELD_NAME not in request.GET and
-            auth.REDIRECT_FIELD_NAME not in request.POST):
-        return shortcuts.redirect(settings.LOGIN_REDIRECT_URL)
+
+    # If the user enabled websso and selects default protocol
+    # from the dropdown, We need to redirect user to the websso url
+    if request.method == 'POST':
+        protocol = request.POST.get('auth_type', 'credentials')
+        if utils.is_websso_enabled() and protocol != 'credentials':
+            region = request.POST.get('region')
+            origin = request.build_absolute_uri('/auth/websso/')
+            url = ('%s/auth/OS-FEDERATION/websso/%s?origin=%s' %
+                   (region, protocol, origin))
+            return shortcuts.redirect(url)
+
+    if not request.is_ajax():
+        # If the user is already authenticated, redirect them to the
+        # dashboard straight away, unless the 'next' parameter is set as it
+        # usually indicates requesting access to a page that requires different
+        # permissions.
+        if (request.user.is_authenticated() and
+                auth.REDIRECT_FIELD_NAME not in request.GET and
+                auth.REDIRECT_FIELD_NAME not in request.POST):
+            return shortcuts.redirect(settings.LOGIN_REDIRECT_URL)
 
     # Get our initial region for the form.
     initial = {}
@@ -93,6 +109,12 @@ def login(request, template_name=None, extra_context=None, **kwargs):
                                   authentication_form=form,
                                   extra_context=extra_context,
                                   **kwargs)
+    # Save the region in the cookie, this is used as the default
+    # selected region next time the Login form loads.
+    if request.method == "POST":
+        utils.set_response_cookie(res, 'login_region',
+                                  request.POST.get('region', ''))
+
     # Set the session data here because django's session key rotation
     # will erase it if we set it earlier.
     if request.user.is_authenticated():
@@ -102,7 +124,32 @@ def login(request, template_name=None, extra_context=None, **kwargs):
         region_name = regions.get(region)
         request.session['region_endpoint'] = region
         request.session['region_name'] = region_name
+        request.session['last_activity'] = int(time.time())
     return res
+
+
+@sensitive_post_parameters()
+@csrf_exempt
+@never_cache
+def websso(request):
+    """Logs a user in using a token from Keystone's POST."""
+    referer = request.META.get('HTTP_REFERER', settings.OPENSTACK_KEYSTONE_URL)
+    auth_url = re.sub(r'/auth.*', '', referer)
+    token = request.POST.get('token')
+    try:
+        request.user = auth.authenticate(request=request, auth_url=auth_url,
+                                         token=token)
+    except exceptions.KeystoneAuthException as exc:
+        msg = 'Login failed: %s' % unicode(exc)
+        res = django_http.HttpResponseRedirect(settings.LOGIN_URL)
+        res.set_cookie('logout_reason', msg, max_age=10)
+        return res
+
+    auth_user.set_session_from_user(request, request.user)
+    auth.login(request, request.user)
+    if request.session.test_cookie_worked():
+        request.session.delete_test_cookie()
+    return django_http.HttpResponseRedirect(settings.LOGIN_REDIRECT_URL)
 
 
 def logout(request, login_url=None, **kwargs):
@@ -130,25 +177,22 @@ def logout(request, login_url=None, **kwargs):
 
 def delete_token(endpoint, token_id):
     """Delete a token."""
-
-    insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
-    ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
     utils.remove_project_cache(token_id)
+
     try:
-        if utils.get_keystone_version() < 3:
-            client = keystone_client_v2.Client(
-                endpoint=endpoint,
-                token=token_id,
-                insecure=insecure,
-                cacert=ca_cert,
-                debug=settings.DEBUG
-            )
-            client.tokens.delete(token=token_id)
-            LOG.info('Deleted token %s' % token_id)
+        endpoint = utils.fix_auth_url_version(endpoint)
+
+        session = utils.get_session()
+        auth_plugin = token_endpoint.Token(endpoint=endpoint,
+                                           token=token_id)
+        client = utils.get_keystone_client().Client(session=session,
+                                                    auth=auth_plugin)
+        if utils.get_keystone_version() >= 3:
+            client.tokens.revoke_token(token=token_id)
         else:
-            # FIXME: KS-client does not have delete token available
-            # Need to add this later when it is exposed.
-            pass
+            client.tokens.delete(token=token_id)
+
+        LOG.info('Deleted token %s' % token_id)
     except keystone_exceptions.ClientException:
         LOG.info('Could not delete token')
 
@@ -158,21 +202,19 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
     """Switches an authenticated user from one project to another."""
     LOG.debug('Switching to tenant %s for user "%s".'
               % (tenant_id, request.user.username))
-    insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
-    ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
-    endpoint = request.user.endpoint
+
+    endpoint = utils.fix_auth_url_version(request.user.endpoint)
+    session = utils.get_session()
+    # Keystone can be configured to prevent exchanging a scoped token for
+    # another token. Always use the unscoped token for requesting a
+    # scoped token.
+    unscoped_token = request.user.unscoped_token
+    auth = utils.get_token_auth_plugin(auth_url=endpoint,
+                                       token=unscoped_token,
+                                       project_id=tenant_id)
+
     try:
-        if utils.get_keystone_version() >= 3:
-            if not utils.has_in_url_path(endpoint, '/v3'):
-                endpoint = utils.url_path_replace(endpoint, '/v2.0', '/v3', 1)
-        client = utils.get_keystone_client().Client(
-            tenant_id=tenant_id,
-            token=request.user.token.id,
-            auth_url=endpoint,
-            insecure=insecure,
-            cacert=ca_cert,
-            debug=settings.DEBUG)
-        auth_ref = client.auth_ref
+        auth_ref = auth.get_access(session)
         msg = 'Project switch successful for user "%(username)s".' % \
             {'username': request.user.username}
         LOG.info(msg)
@@ -195,9 +237,14 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
         if old_token and old_endpoint and old_token.id != auth_ref.auth_token:
             delete_token(endpoint=old_endpoint, token_id=old_token.id)
         user = auth_user.create_user_from_token(
-            request, auth_user.Token(auth_ref), endpoint)
+            request,
+            auth_user.Token(auth_ref, unscoped_token=unscoped_token),
+            endpoint)
         auth_user.set_session_from_user(request, user)
-    return shortcuts.redirect(redirect_to)
+    response = shortcuts.redirect(redirect_to)
+    utils.set_response_cookie(response, 'recent_project',
+                              request.user.project_id)
+    return response
 
 
 @login_required
@@ -217,4 +264,7 @@ def switch_region(request, region_name,
     if not is_safe_url(url=redirect_to, host=request.get_host()):
         redirect_to = settings.LOGIN_REDIRECT_URL
 
-    return shortcuts.redirect(redirect_to)
+    response = shortcuts.redirect(redirect_to)
+    utils.set_response_cookie(response, 'services_region',
+                              request.session['services_region'])
+    return response

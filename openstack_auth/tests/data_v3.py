@@ -14,16 +14,14 @@
 import datetime
 import uuid
 
-import requests
-
 from django.utils import datetime_safe
-
 from keystoneclient import access
 from keystoneclient import service_catalog
 from keystoneclient.v3 import domains
 from keystoneclient.v3 import projects
 from keystoneclient.v3 import roles
 from keystoneclient.v3 import users
+import requests
 
 
 class TestDataContainer(object):
@@ -245,5 +243,73 @@ def generate_test_data():
         'user': {},
         'catalog': [keystone_service, nova_service],
     }, token=auth_token)
+
+    # federated user
+    federated_scoped_token_dict = {
+        'token': {
+            'methods': ['password'],
+            'expires_at': expiration,
+            'project': {
+                'id': project_dict_1['id'],
+                'name': project_dict_1['name'],
+                'domain': {
+                    'id': domain_dict['id'],
+                    'name': domain_dict['name']
+                }
+            },
+            'user': {
+                'id': user_dict['id'],
+                'name': user_dict['name'],
+                'domain': {
+                    'id': domain_dict['id'],
+                    'name': domain_dict['name']
+                },
+                'OS-FEDERATION': {
+                    'identity_provider': 'ACME',
+                    'protocol': 'OIDC',
+                    'groups': [
+                        {'id': uuid.uuid4().hex},
+                        {'id': uuid.uuid4().hex}
+                    ]
+                }
+            },
+            'roles': [role_dict],
+            'catalog': [keystone_service, nova_service]
+        }
+    }
+
+    test_data.federated_scoped_access_info = access.AccessInfo.factory(
+        resp=auth_response,
+        body=federated_scoped_token_dict
+    )
+
+    federated_unscoped_token_dict = {
+        'token': {
+            'methods': ['password'],
+            'expires_at': expiration,
+            'user': {
+                'id': user_dict['id'],
+                'name': user_dict['name'],
+                'domain': {
+                    'id': domain_dict['id'],
+                    'name': domain_dict['name']
+                },
+                'OS-FEDERATION': {
+                    'identity_provider': 'ACME',
+                    'protocol': 'OIDC',
+                    'groups': [
+                        {'id': uuid.uuid4().hex},
+                        {'id': uuid.uuid4().hex}
+                    ]
+                }
+            },
+            'catalog': [keystone_service]
+        }
+    }
+
+    test_data.federated_unscoped_access_info = access.AccessInfo.factory(
+        resp=auth_response,
+        body=federated_unscoped_token_dict
+    )
 
     return test_data

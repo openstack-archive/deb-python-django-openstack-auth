@@ -16,7 +16,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import models
-
+from keystoneclient.common import cms as keystone_cms
 from keystoneclient import exceptions as keystone_exceptions
 
 from openstack_auth import utils
@@ -36,6 +36,9 @@ def set_session_from_user(request, user):
 
 
 def create_user_from_token(request, token, endpoint, services_region=None):
+    # if the region is provided, use that, otherwise use the preferred region
+    svc_region = services_region or \
+        utils.default_services_region(token.serviceCatalog, request)
     return User(id=token.user['id'],
                 token=token,
                 user=token.user['name'],
@@ -51,17 +54,21 @@ def create_user_from_token(request, token, endpoint, services_region=None):
                 service_catalog=token.serviceCatalog,
                 roles=token.roles,
                 endpoint=endpoint,
-                services_region=services_region)
+                services_region=svc_region,
+                is_federated=token.is_federated,
+                unscoped_token=token.unscoped_token)
 
 
 class Token(object):
-    """Token object that encapsulates the auth_ref (AccessInfo)from keystone
-       client.
+    """Encapsulates the AccessInfo object from keystoneclient.
 
-       Added for maintaining backward compatibility with horizon that expects
-       Token object in the user object.
+    Token object provides a consistent interface for accessing the keystone
+    token information and service catalog.
+
+    Added for maintaining backward compatibility with horizon that expects
+    Token object in the user object.
     """
-    def __init__(self, auth_ref):
+    def __init__(self, auth_ref, unscoped_token=None):
         # User-related attributes
         user = {}
         user['id'] = auth_ref.user_id
@@ -72,12 +79,17 @@ class Token(object):
 
         # Token-related attributes
         self.id = auth_ref.auth_token
-        if len(self.id) > 64:
+        self.unscoped_token = unscoped_token
+        if (keystone_cms.is_asn1_token(self.id)
+                or keystone_cms.is_pkiz(self.id)):
             algorithm = getattr(settings, 'OPENSTACK_TOKEN_HASH_ALGORITHM',
                                 'md5')
             hasher = hashlib.new(algorithm)
             hasher.update(self.id)
             self.id = hasher.hexdigest()
+            # If the scoped_token is long, then unscoped_token must be too.
+            hasher.update(self.unscoped_token)
+            self.unscoped_token = hasher.hexdigest()
         self.expires = auth_ref.expires
 
         # Project-related attributes
@@ -93,15 +105,15 @@ class Token(object):
         domain['name'] = auth_ref.domain_name
         self.domain = domain
 
+        # Federation-related attributes
+        self.is_federated = auth_ref.is_federated
+
         if auth_ref.version == 'v2.0':
             self.roles = auth_ref['user'].get('roles', [])
         else:
             self.roles = auth_ref.get('roles', [])
 
-        if utils.get_keystone_version() < 3:
-            self.serviceCatalog = auth_ref.get('serviceCatalog', [])
-        else:
-            self.serviceCatalog = auth_ref.get('catalog', [])
+        self.serviceCatalog = auth_ref.service_catalog.get_data()
 
 
 class User(models.AnonymousUser):
@@ -163,13 +175,22 @@ class User(models.AnonymousUser):
 
         The id of the Keystone domain scoped for the current user/token.
 
+    .. attribute:: is_federated
+
+        Whether user is federated Keystone user. (Boolean)
+
+    .. attribute:: unscoped_token
+
+        Unscoped Keystone token.
+
     """
     def __init__(self, id=None, token=None, user=None, tenant_id=None,
                  service_catalog=None, tenant_name=None, roles=None,
                  authorized_tenants=None, endpoint=None, enabled=False,
                  services_region=None, user_domain_id=None,
                  user_domain_name=None, domain_id=None, domain_name=None,
-                 project_id=None, project_name=None):
+                 project_id=None, project_name=None,
+                 is_federated=False, unscoped_token=None):
         self.id = id
         self.pk = id
         self.token = token
@@ -181,12 +202,19 @@ class User(models.AnonymousUser):
         self.project_id = project_id or tenant_id
         self.project_name = project_name or tenant_name
         self.service_catalog = service_catalog
-        self._services_region = (services_region or
-                                 self.default_services_region())
+        self._services_region = (
+            services_region
+            or utils.default_services_region(service_catalog)
+        )
         self.roles = roles or []
         self.endpoint = endpoint
         self.enabled = enabled
         self._authorized_tenants = authorized_tenants
+        self.is_federated = is_federated
+
+        # Unscoped token is used for listing user's project that works
+        # for both federated and keystone user.
+        self.unscoped_token = unscoped_token
 
         # List of variables to be deprecated.
         self.tenant_id = self.project_id
@@ -259,25 +287,24 @@ class User(models.AnonymousUser):
 
         Returns ``True`` or ``False``.
         """
-        return 'admin' in [role['name'].lower() for role in self.roles]
+        admin_roles = [role.lower() for role in getattr(
+            settings,
+            'OPENSTACK_KEYSTONE_ADMIN_ROLES',
+            ['admin'])]
+        user_roles = [role['name'].lower() for role in self.roles]
+        return True if set(admin_roles).intersection(user_roles) else False
 
     @property
     def authorized_tenants(self):
         """Returns a memoized list of tenants this user may access."""
-        insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
-        ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
-
         if self.is_authenticated() and self._authorized_tenants is None:
             endpoint = self.endpoint
-            token = self.token
             try:
                 self._authorized_tenants = utils.get_project_list(
                     user_id=self.id,
                     auth_url=endpoint,
-                    token=token.id,
-                    insecure=insecure,
-                    cacert=ca_cert,
-                    debug=settings.DEBUG)
+                    token=self.unscoped_token,
+                    is_federated=self.is_federated)
             except (keystone_exceptions.ClientException,
                     keystone_exceptions.AuthorizationFailure):
                 LOG.exception('Unable to retrieve project list.')
@@ -286,19 +313,6 @@ class User(models.AnonymousUser):
     @authorized_tenants.setter
     def authorized_tenants(self, tenant_list):
         self._authorized_tenants = tenant_list
-
-    def default_services_region(self):
-        """Returns the first endpoint region for first non-identity service.
-
-        Extracted from the service catalog.
-        """
-        if self.service_catalog:
-            for service in self.service_catalog:
-                if service['type'] == 'identity':
-                    continue
-                for endpoint in service['endpoints']:
-                    return endpoint['region']
-        return None
 
     @property
     def services_region(self):
@@ -314,11 +328,13 @@ class User(models.AnonymousUser):
         regions = []
         if self.service_catalog:
             for service in self.service_catalog:
-                if service['type'] == 'identity':
+                service_type = service.get('type')
+                if service_type is None or service_type == 'identity':
                     continue
-                for endpoint in service['endpoints']:
-                    if endpoint['region'] not in regions:
-                        regions.append(endpoint['region'])
+                for endpoint in service.get('endpoints', []):
+                    region = utils.get_endpoint_region(endpoint)
+                    if region not in regions:
+                        regions.append(region)
         return regions
 
     def save(*args, **kwargs):

@@ -17,7 +17,6 @@ import logging
 
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
-
 from keystoneclient import exceptions as keystone_exceptions
 
 from openstack_auth import exceptions
@@ -32,9 +31,23 @@ KEYSTONE_CLIENT_ATTR = "_keystoneclient"
 
 
 class KeystoneBackend(object):
-    """Django authentication backend class for use with
-      ``django.contrib.auth``.
-    """
+    """Django authentication backend for use with ``django.contrib.auth``."""
+
+    def __init__(self):
+        self._auth_plugins = None
+
+    @property
+    def auth_plugins(self):
+        if self._auth_plugins is None:
+            plugins = getattr(
+                settings,
+                'AUTHENTICATION_PLUGINS',
+                ['openstack_auth.plugin.password.PasswordPlugin',
+                 'openstack_auth.plugin.token.TokenPlugin'])
+
+            self._auth_plugins = [utils.import_string(p)() for p in plugins]
+
+        return self._auth_plugins
 
     def check_auth_expiry(self, auth_ref, margin=None):
         if not utils.is_token_valid(auth_ref, margin):
@@ -48,7 +61,9 @@ class KeystoneBackend(object):
         return True
 
     def get_user(self, user_id):
-        """Returns the current user (if authenticated) based on the user ID
+        """Returns the current user from the session data.
+
+        If authenticated, this return the user object based on the user ID
         and session data.
 
         Note: this required monkey-patching the ``contrib.auth`` middleware
@@ -65,43 +80,38 @@ class KeystoneBackend(object):
         else:
             return None
 
-    def authenticate(self, request=None, username=None, password=None,
-                     user_domain_name=None, auth_url=None):
+    def authenticate(self, auth_url=None, **kwargs):
         """Authenticates a user via the Keystone Identity API."""
-        LOG.debug('Beginning user authentication for user "%s".' % username)
+        LOG.debug('Beginning user authentication')
 
-        insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
-        ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
-        endpoint_type = getattr(
-            settings, 'OPENSTACK_ENDPOINT_TYPE', 'publicURL')
+        if not auth_url:
+            auth_url = settings.OPENSTACK_KEYSTONE_URL
 
-        # keystone client v3 does not support logging in on the v2 url any more
-        if utils.get_keystone_version() >= 3:
-            if utils.has_in_url_path(auth_url, "/v2.0"):
-                LOG.warning("The settings.py file points to a v2.0 keystone "
-                            "endpoint, but v3 is specified as the API version "
-                            "to use. Using v3 endpoint for authentication.")
-                auth_url = utils.url_path_replace(auth_url, "/v2.0", "/v3", 1)
+        auth_url = utils.fix_auth_url_version(auth_url)
 
-        keystone_client = utils.get_keystone_client()
+        for plugin in self.auth_plugins:
+            unscoped_auth = plugin.get_plugin(auth_url=auth_url, **kwargs)
+
+            if unscoped_auth:
+                break
+        else:
+            msg = _('No authentication backend could be determined to '
+                    'handle the provided credentials.')
+            LOG.warn('No authentication backend could be determined to '
+                     'handle the provided credentials. This is likely a '
+                     'configuration error that should be addressed.')
+            raise exceptions.KeystoneAuthException(msg)
+
+        session = utils.get_session()
+        keystone_client_class = utils.get_keystone_client().Client
+
         try:
-            client = keystone_client.Client(
-                user_domain_name=user_domain_name,
-                username=username,
-                password=password,
-                auth_url=auth_url,
-                insecure=insecure,
-                cacert=ca_cert,
-                debug=settings.DEBUG)
-
-            unscoped_auth_ref = client.auth_ref
-            unscoped_token = auth_user.Token(auth_ref=unscoped_auth_ref)
+            unscoped_auth_ref = unscoped_auth.get_access(session)
         except (keystone_exceptions.Unauthorized,
                 keystone_exceptions.Forbidden,
                 keystone_exceptions.NotFound) as exc:
-            msg = _('Invalid user name or password.')
             LOG.debug(str(exc))
-            raise exceptions.KeystoneAuthException(msg)
+            raise exceptions.KeystoneAuthException(_('Invalid credentials.'))
         except (keystone_exceptions.ClientException,
                 keystone_exceptions.AuthorizationFailure) as exc:
             msg = _("An error occurred authenticating. "
@@ -112,65 +122,76 @@ class KeystoneBackend(object):
         # Check expiry for our unscoped auth ref.
         self.check_auth_expiry(unscoped_auth_ref)
 
-        # Check if token is automatically scoped to default_project
-        if unscoped_auth_ref.project_scoped:
-            auth_ref = unscoped_auth_ref
-        else:
-            # For now we list all the user's projects and iterate through.
-            try:
-                if utils.get_keystone_version() < 3:
-                    projects = client.tenants.list()
-                else:
-                    client.management_url = auth_url
-                    projects = client.projects.list(
-                        user=unscoped_auth_ref.user_id)
-            except (keystone_exceptions.ClientException,
-                    keystone_exceptions.AuthorizationFailure) as exc:
-                msg = _('Unable to retrieve authorized projects.')
-                raise exceptions.KeystoneAuthException(msg)
+        projects = plugin.list_projects(session,
+                                        unscoped_auth,
+                                        unscoped_auth_ref)
+        # Attempt to scope only to enabled projects
+        projects = [project for project in projects if project.enabled]
 
-            # Abort if there are no projects for this user
-            if not projects:
-                msg = _('You are not authorized for any projects.')
-                raise exceptions.KeystoneAuthException(msg)
+        # Abort if there are no projects for this user
+        if not projects:
+            msg = _('You are not authorized for any projects.')
+            raise exceptions.KeystoneAuthException(msg)
 
-            while projects:
-                project = projects.pop()
-                try:
-                    client = keystone_client.Client(
-                        tenant_id=project.id,
-                        token=unscoped_auth_ref.auth_token,
-                        auth_url=auth_url,
-                        insecure=insecure,
-                        cacert=ca_cert,
-                        debug=settings.DEBUG)
-                    auth_ref = client.auth_ref
+        # the recent project id a user might have set in a cookie
+        recent_project = None
+        request = kwargs.get('request')
+
+        if request:
+            # Check if token is automatically scoped to default_project
+            # grab the project from this token, to use as a default
+            # if no recent_project is found in the cookie
+            recent_project = request.COOKIES.get('recent_project',
+                                                 unscoped_auth_ref.project_id)
+
+        # if a most recent project was found, try using it first
+        if recent_project:
+            for pos, project in enumerate(projects):
+                if project.id == recent_project:
+                    # move recent project to the beginning
+                    projects.pop(pos)
+                    projects.insert(0, project)
                     break
-                except (keystone_exceptions.ClientException,
-                        keystone_exceptions.AuthorizationFailure):
-                    auth_ref = None
 
-            if auth_ref is None:
-                msg = _("Unable to authenticate to any available projects.")
-                raise exceptions.KeystoneAuthException(msg)
+        for project in projects:
+            token = unscoped_auth_ref.auth_token
+            scoped_auth = utils.get_token_auth_plugin(auth_url,
+                                                      token=token,
+                                                      project_id=project.id)
+
+            try:
+                scoped_auth_ref = scoped_auth.get_access(session)
+            except (keystone_exceptions.ClientException,
+                    keystone_exceptions.AuthorizationFailure):
+                pass
+            else:
+                break
+        else:
+            msg = _("Unable to authenticate to any available projects.")
+            raise exceptions.KeystoneAuthException(msg)
 
         # Check expiry for our new scoped token.
-        self.check_auth_expiry(auth_ref)
+        self.check_auth_expiry(scoped_auth_ref)
+
+        interface = getattr(settings, 'OPENSTACK_ENDPOINT_TYPE', 'public')
 
         # If we made it here we succeeded. Create our User!
+        unscoped_token = unscoped_auth_ref.auth_token
         user = auth_user.create_user_from_token(
             request,
-            auth_user.Token(auth_ref),
-            client.service_catalog.url_for(endpoint_type=endpoint_type))
+            auth_user.Token(scoped_auth_ref, unscoped_token=unscoped_token),
+            scoped_auth_ref.service_catalog.url_for(endpoint_type=interface))
 
         if request is not None:
-            request.session['unscoped_token'] = unscoped_token.id
+            request.session['unscoped_token'] = unscoped_token
             request.user = user
+            scoped_client = keystone_client_class(session=session,
+                                                  auth=scoped_auth)
 
             # Support client caching to save on auth calls.
-            setattr(request, KEYSTONE_CLIENT_ATTR, client)
+            setattr(request, KEYSTONE_CLIENT_ATTR, scoped_client)
 
-        LOG.debug('Authentication completed for user "%s".' % username)
+        LOG.debug('Authentication completed.')
         return user
 
     def get_group_permissions(self, user, obj=None):
@@ -181,10 +202,12 @@ class KeystoneBackend(object):
         return set()
 
     def get_all_permissions(self, user, obj=None):
-        """Returns a set of permission strings that this user has through
-           his/her Keystone "roles".
+        """Returns a set of permission strings that the user has.
 
-          The permissions are returned as ``"openstack.{{ role.name }}"``.
+        This permission available to the user is derived from the user's
+        Keystone "roles".
+
+        The permissions are returned as ``"openstack.{{ role.name }}"``.
         """
         if user.is_anonymous() or obj is not None:
             return set()
@@ -192,11 +215,19 @@ class KeystoneBackend(object):
         #                      when supported by Keystone.
         role_perms = set(["openstack.roles.%s" % role['name'].lower()
                           for role in user.roles])
-        service_perms = set(["openstack.services.%s" % service['type'].lower()
-                             for service in user.service_catalog
-                             if user.services_region in
-                             [endpoint.get('region', None) for endpoint
-                              in service.get('endpoints', [])]])
+
+        services = []
+        for service in user.service_catalog:
+            try:
+                service_type = service['type']
+            except KeyError:
+                continue
+            service_regions = [utils.get_endpoint_region(endpoint) for endpoint
+                               in service.get('endpoints', [])]
+            if user.services_region in service_regions:
+                services.append(service_type.lower())
+        service_perms = set(["openstack.services.%s" % service
+                             for service in services])
         return role_perms | service_perms
 
     def has_perm(self, user, perm, obj=None):
@@ -208,7 +239,7 @@ class KeystoneBackend(object):
     def has_module_perms(self, user, app_label):
         """Returns True if user has any permissions in the given app_label.
 
-           Currently this matches for the app_label ``"openstack"``.
+        Currently this matches for the app_label ``"openstack"``.
         """
         if not user.is_active:
             return False
