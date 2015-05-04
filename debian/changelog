@@ -1,5 +1,6 @@
-python-django-openstack-auth (1.1.7-4) unstable; urgency=medium
+python-django-openstack-auth (1.2.0-1) unstable; urgency=medium
 
+  * New upstream release.
   * Uploading to unstable.
 
  -- Thomas Goirand <zigo@debian.org>  Mon, 04 May 2015 21:55:49 +0200
