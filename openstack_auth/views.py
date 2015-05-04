@@ -29,6 +29,10 @@ from keystoneclient import exceptions as keystone_exceptions
 from keystoneclient.v2_0 import client as keystone_client_v2
 
 from openstack_auth import forms
+# This is historic and is added back in to not break older versions of
+# Horizon, fix to Horizon to remove this requirement was committed in
+# Juno
+from openstack_auth.forms import Login  # noqa
 from openstack_auth import user as auth_user
 from openstack_auth import utils
 
@@ -44,8 +48,8 @@ LOG = logging.getLogger(__name__)
 @sensitive_post_parameters()
 @csrf_protect
 @never_cache
-def login(request):
-    """ Logs a user in using the :class:`~openstack_auth.forms.Login` form. """
+def login(request, template_name=None, extra_context=None, **kwargs):
+    """Logs a user in using the :class:`~openstack_auth.forms.Login` form."""
     # If the user is already authenticated, redirect them to the
     # dashboard straight away, unless the 'next' parameter is set as it
     # usually indicates requesting access to a page that requires different
@@ -74,18 +78,21 @@ def login(request):
     else:
         form = functional.curry(forms.Login, initial=initial)
 
-    extra_context = {'redirect_field_name': auth.REDIRECT_FIELD_NAME}
+    if extra_context is None:
+        extra_context = {'redirect_field_name': auth.REDIRECT_FIELD_NAME}
 
-    if request.is_ajax():
-        template_name = 'auth/_login.html'
-        extra_context['hide'] = True
-    else:
-        template_name = 'auth/login.html'
+    if not template_name:
+        if request.is_ajax():
+            template_name = 'auth/_login.html'
+            extra_context['hide'] = True
+        else:
+            template_name = 'auth/login.html'
 
     res = django_auth_views.login(request,
                                   template_name=template_name,
                                   authentication_form=form,
-                                  extra_context=extra_context)
+                                  extra_context=extra_context,
+                                  **kwargs)
     # Set the session data here because django's session key rotation
     # will erase it if we set it earlier.
     if request.user.is_authenticated():
@@ -98,7 +105,17 @@ def login(request):
     return res
 
 
-def logout(request):
+def logout(request, login_url=None, **kwargs):
+    """Logs out the user if he is logged in. Then redirects to the log-in page.
+
+    .. param:: login_url
+
+       Once logged out, defines the URL where to redirect after login
+
+    .. param:: kwargs
+       see django.contrib.auth.views.logout_then_login extra parameters.
+
+    """
     msg = 'Logging out user "%(username)s".' % \
         {'username': request.user.username}
     LOG.info(msg)
@@ -107,7 +124,8 @@ def logout(request):
     if token and endpoint:
         delete_token(endpoint=endpoint, token_id=token.id)
     """ Securely logs a user out. """
-    return django_auth_views.logout_then_login(request)
+    return django_auth_views.logout_then_login(request, login_url=login_url,
+                                               **kwargs)
 
 
 def delete_token(endpoint, token_id):
@@ -115,6 +133,7 @@ def delete_token(endpoint, token_id):
 
     insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
     ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
+    utils.remove_project_cache(token_id)
     try:
         if utils.get_keystone_version() < 3:
             client = keystone_client_v2.Client(
@@ -136,7 +155,7 @@ def delete_token(endpoint, token_id):
 
 @login_required
 def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
-    """ Switches an authenticated user from one project to another. """
+    """Switches an authenticated user from one project to another."""
     LOG.debug('Switching to tenant %s for user "%s".'
               % (tenant_id, request.user.username))
     insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
@@ -144,8 +163,8 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
     endpoint = request.user.endpoint
     try:
         if utils.get_keystone_version() >= 3:
-            if 'v3' not in endpoint:
-                endpoint = endpoint.replace('v2.0', 'v3')
+            if not utils.has_in_url_path(endpoint, '/v3'):
+                endpoint = utils.url_path_replace(endpoint, '/v2.0', '/v3', 1)
         client = utils.get_keystone_client().Client(
             tenant_id=tenant_id,
             token=request.user.token.id,
@@ -184,9 +203,10 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
 @login_required
 def switch_region(request, region_name,
                   redirect_field_name=auth.REDIRECT_FIELD_NAME):
-    """
-    Switches the non-identity services region that is being managed
-    for the scoped project.
+    """Switches the user's region for all services except Identity service.
+
+    The region will be switched if the given region is one of the regions
+    available for the scoped project. Otherwise the region is not switched.
     """
     if region_name in request.user.available_services_regions:
         request.session['services_region'] = region_name

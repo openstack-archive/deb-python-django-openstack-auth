@@ -1,20 +1,20 @@
-# Russian translations for django_openstack_auth.
+# Italian translations for django_openstack_auth.
 # Copyright (C) 2014 ORGANIZATION
 # This file is distributed under the same license as the
 # django_openstack_auth project.
 #
 # Translators:
+# Salvatore Davide Rapisarda <sdrapisarda@gmail.com>, 2014
 msgid ""
 msgstr ""
 "Project-Id-Version:  Horizon\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2014-07-16 06:06+0000\n"
-"PO-Revision-Date: 2014-03-21 08:11+0000\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: Russian "
-"(http://www.transifex.com/projects/p/horizon/language/ru/)\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
+"PO-Revision-Date: 2014-07-04 08:52+0000\n"
+"Last-Translator: Salvatore Davide Rapisarda <sdrapisarda@gmail.com>\n"
+"Language-Team: Italian "
+"(http://www.transifex.com/projects/p/horizon/language/it/)\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -22,41 +22,41 @@ msgstr ""
 
 #: openstack_auth/backend.py:41
 msgid "The authentication token issued by the Identity service has expired."
-msgstr "Время действия токена, выданного сервисом идентификации, истекло."
+msgstr "Il token di autenticazione che stai usando è scaduto."
 
 #: openstack_auth/backend.py:98
 msgid "Invalid user name or password."
-msgstr "Неверное имя пользователя или пароль"
+msgstr "Nome utente o password non valido."
 
 #: openstack_auth/backend.py:103
 msgid "An error occurred authenticating. Please try again later."
-msgstr "Произошла ошибка аутентификации. Пожалуйста, повторите попытку позже."
+msgstr "Si è verificato un errore. Riprova più tardi."
 
 #: openstack_auth/backend.py:125
 msgid "Unable to retrieve authorized projects."
-msgstr "Невозможно получить авторизованные проекты"
+msgstr "Impossibile ottenere l'accesso ai progetti."
 
 #: openstack_auth/backend.py:130
 msgid "You are not authorized for any projects."
-msgstr "Вы не авторизованы ни в одном проекте."
+msgstr "Non sei abilitato a nessun progetto."
 
 #: openstack_auth/backend.py:150
 msgid "Unable to authenticate to any available projects."
-msgstr "Невозможно аутентифицировать ни в одном доступном проекте"
+msgstr "Impossibile effettuare l'autenticazione su nessun progetto disponibile."
 
 #: openstack_auth/forms.py:48
 msgid "Region"
-msgstr "Регион"
+msgstr "Regione"
 
 #: openstack_auth/forms.py:50
 msgid "User Name"
-msgstr "Имя пользователя"
+msgstr "Nome Utente"
 
 #: openstack_auth/forms.py:52
 msgid "Password"
-msgstr "Пароль"
+msgstr "Password"
 
 #: openstack_auth/forms.py:61
 msgid "Domain"
-msgstr "Домен"
+msgstr "Dominio"
 

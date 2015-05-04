@@ -40,6 +40,9 @@ def create_user_from_token(request, token, endpoint, services_region=None):
                 token=token,
                 user=token.user['name'],
                 user_domain_id=token.user_domain_id,
+                # We need to consider already logged-in users with an old
+                # version of Token without user_domain_name.
+                user_domain_name=getattr(token, 'user_domain_name', None),
                 project_id=token.project['id'],
                 project_name=token.project['name'],
                 domain_id=token.domain['id'],
@@ -65,11 +68,16 @@ class Token(object):
         user['name'] = auth_ref.username
         self.user = user
         self.user_domain_id = auth_ref.user_domain_id
+        self.user_domain_name = auth_ref.user_domain_name
 
         # Token-related attributes
         self.id = auth_ref.auth_token
-        if len(self.id) > 32:
-            self.id = hashlib.md5(self.id).hexdigest()
+        if len(self.id) > 64:
+            algorithm = getattr(settings, 'OPENSTACK_TOKEN_HASH_ALGORITHM',
+                                'md5')
+            hasher = hashlib.new(algorithm)
+            hasher.update(self.id)
+            self.id = hasher.hexdigest()
         self.expires = auth_ref.expires
 
         # Project-related attributes
@@ -147,6 +155,10 @@ class User(models.AnonymousUser):
 
         The domain id of the current user.
 
+    .. attribute:: user_domain_name
+
+        The domain name of the current user.
+
     .. attribute:: domain_id
 
         The id of the Keystone domain scoped for the current user/token.
@@ -155,13 +167,15 @@ class User(models.AnonymousUser):
     def __init__(self, id=None, token=None, user=None, tenant_id=None,
                  service_catalog=None, tenant_name=None, roles=None,
                  authorized_tenants=None, endpoint=None, enabled=False,
-                 services_region=None, user_domain_id=None, domain_id=None,
-                 domain_name=None, project_id=None, project_name=None):
+                 services_region=None, user_domain_id=None,
+                 user_domain_name=None, domain_id=None, domain_name=None,
+                 project_id=None, project_name=None):
         self.id = id
         self.pk = id
         self.token = token
         self.username = user
         self.user_domain_id = user_domain_id
+        self.user_domain_name = user_domain_name
         self.domain_id = domain_id
         self.domain_name = domain_name
         self.project_id = project_id or tenant_id
@@ -184,25 +198,56 @@ class User(models.AnonymousUser):
     def __repr__(self):
         return "<%s: %s>" % (self.__class__.__name__, self.username)
 
-    def is_token_expired(self):
-        """
+    def is_token_expired(self, margin=None):
+        """Determine if the token is expired.
+
         Returns ``True`` if the token is expired, ``False`` if not, and
         ``None`` if there is no token set.
+
+        .. param:: margin
+
+           A security time margin in seconds before real expiration.
+           Will return ``True`` if the token expires in less than ``margin``
+           seconds of time.
+           A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
+           django settings.
+
         """
         if self.token is None:
             return None
-        return not utils.check_token_expiration(self.token)
+        return not utils.is_token_valid(self.token, margin)
 
-    def is_authenticated(self):
-        """ Checks for a valid token that has not yet expired. """
+    def is_authenticated(self, margin=None):
+        """Checks for a valid authentication.
+
+        .. param:: margin
+
+           A security time margin in seconds before end of authentication.
+           Will return ``False`` if authentication ends in less than ``margin``
+           seconds of time.
+           A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
+           django settings.
+
+        """
         return (self.token is not None and
-                utils.check_token_expiration(self.token))
+                utils.is_token_valid(self.token, margin))
 
-    def is_anonymous(self):
+    def is_anonymous(self, margin=None):
+        """Return if the user is not authenticated.
+
+        Returns ``True`` if not authenticated,``False`` otherwise.
+
+        .. param:: margin
+
+           A security time margin in seconds before end of an eventual
+           authentication.
+           Will return ``True`` even if authenticated but that authentication
+           ends in less than ``margin`` seconds of time.
+           A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
+           django settings.
+
         """
-        Returns ``True`` if the user is not authenticated,``False`` otherwise.
-        """
-        return not self.is_authenticated()
+        return not self.is_authenticated(margin)
 
     @property
     def is_active(self):
@@ -210,15 +255,15 @@ class User(models.AnonymousUser):
 
     @property
     def is_superuser(self):
-        """
-        Evaluates whether this user has admin privileges. Returns
-        ``True`` or ``False``.
+        """Evaluates whether this user has admin privileges.
+
+        Returns ``True`` or ``False``.
         """
         return 'admin' in [role['name'].lower() for role in self.roles]
 
     @property
     def authorized_tenants(self):
-        """ Returns a memoized list of tenants this user may access. """
+        """Returns a memoized list of tenants this user may access."""
         insecure = getattr(settings, 'OPENSTACK_SSL_NO_VERIFY', False)
         ca_cert = getattr(settings, "OPENSTACK_SSL_CACERT", None)
 
@@ -243,9 +288,9 @@ class User(models.AnonymousUser):
         self._authorized_tenants = tenant_list
 
     def default_services_region(self):
-        """
-        Returns the first endpoint region for first non-identity service
-        in the service catalog
+        """Returns the first endpoint region for first non-identity service.
+
+        Extracted from the service catalog.
         """
         if self.service_catalog:
             for service in self.service_catalog:
@@ -265,9 +310,7 @@ class User(models.AnonymousUser):
 
     @property
     def available_services_regions(self):
-        """
-        Returns list of unique region name values found in service catalog
-        """
+        """Returns list of unique region name values in service catalog."""
         regions = []
         if self.service_catalog:
             for service in self.service_catalog:
@@ -289,10 +332,10 @@ class User(models.AnonymousUser):
     # Check for OR'd permission rules, check that user has one of the
     # required permission.
     def has_a_matching_perm(self, perm_list, obj=None):
-        """
-        Returns True if the user has one of the specified permissions. If
-        object is passed, it checks if the user has any of the required perms
-        for this object.
+        """Returns True if the user has one of the specified permissions.
+
+        If object is passed, it checks if the user has any of the required
+        perms for this object.
         """
         # If there are no permissions to check, just return true
         if not perm_list:
@@ -316,8 +359,8 @@ class User(models.AnonymousUser):
     #   ('openstack.roles.admin', ('openstack.roles.L3-support',
     #                              'openstack.roles.L2-support'),)
     def has_perms(self, perm_list, obj=None):
-        """
-        Returns True if the user has all of the specified permissions.
+        """Returns True if the user has all of the specified permissions.
+
         Tuples in the list will possess the required permissions if
         the user has a permissions matching one of the elements of
         that tuple
