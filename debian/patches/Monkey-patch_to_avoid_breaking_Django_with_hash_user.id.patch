@@ -1,0 +1,44 @@
+Subject: Monkey-patch to avoid breaking Django with hash user.id
+ Django's user model has an integer id attribute whereas
+ django-openstack-auth uses a hash string for the id. This change
+ patches Django so that it no longer breaks when it attempts to
+ interpret that id value and turn it into an int.
+ .
+ This patch doesn't modify the actual Django model itself, since
+ doing so could have much wider ramifications that aren't clear,
+ hence effectively patching the symptom here, rather than the
+ cause.
+ .
+ From the bug, the steps to reproduce the issue *without this
+ patch* are:
+ .
+ 1) login into a devstack as "admin"
+ 2) DO NOT LOG OUT and go back to the login form
+ 3) login using "demo"
+Author: Richard Jones <r1chardj0n3s@gmail.com>
+Date: Fri, 4 Sep 2015 02:14:02 +0000 (+1000)
+X-Git-Url: https://review.openstack.org/gitweb?p=openstack%2Fdjango_openstack_auth.git;a=commitdiff_plain;h=738fc98a1700f463bbbb05f66fb80f0d9f95157e
+Fixes-Bug: 1491117
+Fixes-Bug: 1493578
+Change-Id: I34d9741df550122156d014933daf98679bae0410
+Origin: upstream, https://review.openstack.org/#/c/220382/
+
+diff --git a/openstack_auth/utils.py b/openstack_auth/utils.py
+index 1998bcf..0a8d6c0 100644
+--- a/openstack_auth/utils.py
++++ b/openstack_auth/utils.py
+@@ -64,9 +64,14 @@ def get_user(request):
+     return user
+ 
+ 
++def _get_user_session_key(request):
++    return get_user(request).id
++
++
+ def patch_middleware_get_user():
+     middleware.get_user = middleware_get_user
+     auth.get_user = get_user
++    auth._get_user_session_key = _get_user_session_key
+ 
+ 
+ """ End Monkey-Patching. """
