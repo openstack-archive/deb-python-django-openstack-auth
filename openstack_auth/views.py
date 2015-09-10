@@ -12,17 +12,18 @@
 # limitations under the License.
 import logging
 import re
-import time
 
 import django
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required  # noqa
 from django.contrib.auth import views as django_auth_views
+from django.contrib import messages
 from django import http as django_http
 from django import shortcuts
 from django.utils import functional
 from django.utils import http
+from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.cache import never_cache  # noqa
 from django.views.decorators.csrf import csrf_exempt  # noqa
 from django.views.decorators.csrf import csrf_protect  # noqa
@@ -60,7 +61,7 @@ def login(request, template_name=None, extra_context=None, **kwargs):
         protocol = request.POST.get('auth_type', 'credentials')
         if utils.is_websso_enabled() and protocol != 'credentials':
             region = request.POST.get('region')
-            origin = request.build_absolute_uri('/auth/websso/')
+            origin = utils.build_absolute_uri(request, '/auth/websso/')
             url = ('%s/auth/OS-FEDERATION/websso/%s?origin=%s' %
                    (region, protocol, origin))
             return shortcuts.redirect(url)
@@ -124,7 +125,6 @@ def login(request, template_name=None, extra_context=None, **kwargs):
         region_name = regions.get(region)
         request.session['region_endpoint'] = region
         request.session['region_name'] = region_name
-        request.session['last_activity'] = int(time.time())
     return res
 
 
@@ -155,12 +155,11 @@ def websso(request):
 def logout(request, login_url=None, **kwargs):
     """Logs out the user if he is logged in. Then redirects to the log-in page.
 
-    .. param:: login_url
+    :param login_url:
+        Once logged out, defines the URL where to redirect after login
 
-       Once logged out, defines the URL where to redirect after login
-
-    .. param:: kwargs
-       see django.contrib.auth.views.logout_then_login extra parameters.
+    :param kwargs:
+        see django.contrib.auth.views.logout_then_login extra parameters.
 
     """
     msg = 'Logging out user "%(username)s".' % \
@@ -219,9 +218,10 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
             {'username': request.user.username}
         LOG.info(msg)
     except keystone_exceptions.ClientException:
-        msg = 'Project switch failed for user "%(username)s".' % \
-            {'username': request.user.username}
-        LOG.warning(msg)
+        msg = (
+            _('Project switch failed for user "%(username)s".') %
+            {'username': request.user.username})
+        messages.error(request, msg)
         auth_ref = None
         LOG.exception('An error occurred while switching sessions.')
 
@@ -241,6 +241,10 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
             auth_user.Token(auth_ref, unscoped_token=unscoped_token),
             endpoint)
         auth_user.set_session_from_user(request, user)
+        message = (
+            _('Switch to project "%(project_name)s" successful.') %
+            {'project_name': request.user.project_name})
+        messages.success(request, message)
     response = shortcuts.redirect(redirect_to)
     utils.set_response_cookie(response, 'recent_project',
                               request.user.project_id)

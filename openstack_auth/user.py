@@ -23,6 +23,7 @@ from openstack_auth import utils
 
 
 LOG = logging.getLogger(__name__)
+_TOKEN_HASH_ENABLED = getattr(settings, 'OPENSTACK_TOKEN_HASH_ENABLED', True)
 
 
 def set_session_from_user(request, user):
@@ -55,8 +56,9 @@ def create_user_from_token(request, token, endpoint, services_region=None):
                 roles=token.roles,
                 endpoint=endpoint,
                 services_region=svc_region,
-                is_federated=token.is_federated,
-                unscoped_token=token.unscoped_token)
+                is_federated=getattr(token, 'is_federated', False),
+                unscoped_token=getattr(token, 'unscoped_token',
+                                       request.session.get('unscoped_token')))
 
 
 class Token(object):
@@ -80,14 +82,16 @@ class Token(object):
         # Token-related attributes
         self.id = auth_ref.auth_token
         self.unscoped_token = unscoped_token
-        if (keystone_cms.is_asn1_token(self.id)
-                or keystone_cms.is_pkiz(self.id)):
+        if (_TOKEN_HASH_ENABLED and
+                (keystone_cms.is_asn1_token(self.id)
+                    or keystone_cms.is_pkiz(self.id))):
             algorithm = getattr(settings, 'OPENSTACK_TOKEN_HASH_ALGORITHM',
                                 'md5')
             hasher = hashlib.new(algorithm)
             hasher.update(self.id)
             self.id = hasher.hexdigest()
             # If the scoped_token is long, then unscoped_token must be too.
+            hasher = hashlib.new(algorithm)
             hasher.update(self.unscoped_token)
             self.unscoped_token = hasher.hexdigest()
         self.expires = auth_ref.expires
@@ -116,7 +120,7 @@ class Token(object):
         self.serviceCatalog = auth_ref.service_catalog.get_data()
 
 
-class User(models.AnonymousUser):
+class User(models.AbstractBaseUser, models.AnonymousUser):
     """A User class with some extra special sauce for Keystone.
 
     In addition to the standard Django user attributes, this class also has
@@ -190,7 +194,7 @@ class User(models.AnonymousUser):
                  services_region=None, user_domain_id=None,
                  user_domain_name=None, domain_id=None, domain_name=None,
                  project_id=None, project_name=None,
-                 is_federated=False, unscoped_token=None):
+                 is_federated=False, unscoped_token=None, password=None):
         self.id = id
         self.pk = id
         self.token = token
@@ -220,6 +224,9 @@ class User(models.AnonymousUser):
         self.tenant_id = self.project_id
         self.tenant_name = self.project_name
 
+        # Required by AbstractBaseUser
+        self.password = None
+
     def __unicode__(self):
         return self.username
 
@@ -232,8 +239,7 @@ class User(models.AnonymousUser):
         Returns ``True`` if the token is expired, ``False`` if not, and
         ``None`` if there is no token set.
 
-        .. param:: margin
-
+        :param margin:
            A security time margin in seconds before real expiration.
            Will return ``True`` if the token expires in less than ``margin``
            seconds of time.
@@ -248,8 +254,7 @@ class User(models.AnonymousUser):
     def is_authenticated(self, margin=None):
         """Checks for a valid authentication.
 
-        .. param:: margin
-
+        :param margin:
            A security time margin in seconds before end of authentication.
            Will return ``False`` if authentication ends in less than ``margin``
            seconds of time.
@@ -265,8 +270,7 @@ class User(models.AnonymousUser):
 
         Returns ``True`` if not authenticated,``False`` otherwise.
 
-        .. param:: margin
-
+        :param margin:
            A security time margin in seconds before end of an eventual
            authentication.
            Will return ``True`` even if authenticated but that authentication

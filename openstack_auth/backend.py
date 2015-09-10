@@ -13,7 +13,9 @@
 
 """ Module defining the Django auth backend class for the Keystone API. """
 
+import datetime
 import logging
+import pytz
 
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
@@ -107,6 +109,10 @@ class KeystoneBackend(object):
 
         try:
             unscoped_auth_ref = unscoped_auth.get_access(session)
+        except keystone_exceptions.ConnectionRefused as exc:
+            LOG.error(str(exc))
+            msg = _('Unable to establish connection to keystone endpoint.')
+            raise exceptions.KeystoneAuthException(msg)
         except (keystone_exceptions.Unauthorized,
                 keystone_exceptions.Forbidden,
                 keystone_exceptions.NotFound) as exc:
@@ -138,11 +144,9 @@ class KeystoneBackend(object):
         request = kwargs.get('request')
 
         if request:
-            # Check if token is automatically scoped to default_project
-            # grab the project from this token, to use as a default
-            # if no recent_project is found in the cookie
-            recent_project = request.COOKIES.get('recent_project',
-                                                 unscoped_auth_ref.project_id)
+            # Grab recent_project found in the cookie, try to scope
+            # to the last project used.
+            recent_project = request.COOKIES.get('recent_project')
 
         # if a most recent project was found, try using it first
         if recent_project:
@@ -185,6 +189,11 @@ class KeystoneBackend(object):
         if request is not None:
             request.session['unscoped_token'] = unscoped_token
             request.user = user
+            timeout = getattr(settings, "SESSION_TIMEOUT", 3600)
+            token_life = user.token.expires - datetime.datetime.now(pytz.utc)
+            session_time = min(timeout, token_life.seconds)
+            request.session.set_expiry(session_time)
+
             scoped_client = keystone_client_class(session=session,
                                                   auth=scoped_auth)
 

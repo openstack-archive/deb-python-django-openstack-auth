@@ -80,12 +80,9 @@ def is_token_valid(token, margin=None):
 
     Returns ``True`` if the token has not yet expired, otherwise ``False``.
 
-    .. param:: token
+    :param token: The openstack_auth.user.Token instance to check
 
-       The openstack_auth.user.Token instance to check
-
-    .. param:: margin
-
+    :param margin:
        A time margin in seconds to subtract from the real token's validity.
        An example usage is that the token can be valid once the middleware
        passed, and invalid (timed-out) during a view rendering and this
@@ -181,6 +178,15 @@ def is_websso_enabled():
     websso_enabled = getattr(settings, 'WEBSSO_ENABLED', False)
     keystonev3_plus = (get_keystone_version() >= 3)
     return websso_enabled and keystonev3_plus
+
+
+def build_absolute_uri(request, relative_url):
+    """Ensure absolute_uri are relative to WEBROOT."""
+    webroot = getattr(settings, 'WEBROOT', '')
+    if webroot.endswith("/") and relative_url.startswith("/"):
+        webroot = webroot[:-1]
+
+    return request.build_absolute_uri(webroot + relative_url)
 
 
 def has_in_url_path(url, sub):
