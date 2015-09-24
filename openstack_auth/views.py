@@ -30,6 +30,7 @@ from django.views.decorators.csrf import csrf_protect  # noqa
 from django.views.decorators.debug import sensitive_post_parameters  # noqa
 from keystoneclient.auth import token_endpoint
 from keystoneclient import exceptions as keystone_exceptions
+import six
 
 from openstack_auth import exceptions
 from openstack_auth import forms
@@ -58,12 +59,10 @@ def login(request, template_name=None, extra_context=None, **kwargs):
     # If the user enabled websso and selects default protocol
     # from the dropdown, We need to redirect user to the websso url
     if request.method == 'POST':
-        protocol = request.POST.get('auth_type', 'credentials')
-        if utils.is_websso_enabled() and protocol != 'credentials':
-            region = request.POST.get('region')
-            origin = utils.build_absolute_uri(request, '/auth/websso/')
-            url = ('%s/auth/OS-FEDERATION/websso/%s?origin=%s' %
-                   (region, protocol, origin))
+        auth_type = request.POST.get('auth_type', 'credentials')
+        if utils.is_websso_enabled() and auth_type != 'credentials':
+            auth_url = request.POST.get('region')
+            url = utils.get_websso_url(request, auth_url, auth_type)
             return shortcuts.redirect(url)
 
     if not request.is_ajax():
@@ -140,7 +139,7 @@ def websso(request):
         request.user = auth.authenticate(request=request, auth_url=auth_url,
                                          token=token)
     except exceptions.KeystoneAuthException as exc:
-        msg = 'Login failed: %s' % unicode(exc)
+        msg = 'Login failed: %s' % six.text_type(exc)
         res = django_http.HttpResponseRedirect(settings.LOGIN_URL)
         res.set_cookie('logout_reason', msg, max_age=10)
         return res

@@ -14,9 +14,7 @@
 import datetime
 import functools
 import logging
-import sys
 
-import django
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import middleware
@@ -29,7 +27,6 @@ from keystoneclient.auth import token_endpoint
 from keystoneclient import session
 from keystoneclient.v2_0 import client as client_v2
 from keystoneclient.v3 import client as client_v3
-import six
 from six.moves.urllib import parse as urlparse
 
 
@@ -189,6 +186,80 @@ def build_absolute_uri(request, relative_url):
     return request.build_absolute_uri(webroot + relative_url)
 
 
+def get_websso_url(request, auth_url, websso_auth):
+    """Return the keystone endpoint for initiating WebSSO.
+
+    Generate the keystone WebSSO endpoint that will redirect the user
+    to the login page of the federated identity provider.
+
+    Based on the authentication type selected by the user in the login
+    form, it will construct the keystone WebSSO endpoint.
+
+    :param request: Django http request object.
+    :type request: django.http.HttpRequest
+    :param auth_url: Keystone endpoint configured in the horizon setting.
+                     The value is derived from:
+                     - OPENSTACK_KEYSTONE_URL
+                     - AVAILABLE_REGIONS
+    :type auth_url: string
+    :param websso_auth: Authentication type selected by the user from the
+                        login form. The value is derived from the horizon
+                        setting WEBSSO_CHOICES.
+    :type websso_auth: string
+
+    Example of horizon WebSSO setting::
+        WEBSSO_CHOICES = (
+            ("credentials", "Keystone Credentials"),
+            ("oidc", "OpenID Connect"),
+            ("saml2", "Security Assertion Markup Language"),
+            ("acme_oidc", "ACME - OpenID Connect"),
+            ("acme_saml2", "ACME - SAML2")
+        )
+
+        WEBSSO_IDP_MAPPING = {
+            "acme_oidc": ("acme", "oidc"),
+            "acme_saml2": ("acme", "saml2")
+            }
+        }
+
+    The value of websso_auth will be looked up in the WEBSSO_IDP_MAPPING
+    dictionary, if a match is found it will return a IdP specific WebSSO
+    endpoint using the values found in the mapping.
+
+    The value in WEBSSO_IDP_MAPPING is expected to be a tuple formatted as
+    (<idp_id>, <protocol_id>). Using the values found, a IdP/protocol
+    specific URL will be constructed:
+        /auth/OS-FEDERATION/identity_providers/<idp_id>
+        /protocols/<protocol_id>/websso
+
+    If no value is found from the WEBSSO_IDP_MAPPING dictionary, it will
+    treat the value as the global WebSSO protocol <protocol_id> and
+    construct the WebSSO URL by:
+        /auth/OS-FEDERATION/websso/<protocol_id>
+
+    :returns: Keystone WebSSO endpoint.
+    :rtype: string
+
+    """
+    origin = build_absolute_uri(request, '/auth/websso/')
+    idp_mapping = getattr(settings, 'WEBSSO_IDP_MAPPING', {})
+    idp_id, protocol_id = idp_mapping.get(websso_auth,
+                                          (None, websso_auth))
+
+    if idp_id:
+        # Use the IDP specific WebSSO endpoint
+        url = ('%s/auth/OS-FEDERATION/identity_providers/%s'
+               '/protocols/%s/websso?origin=%s' %
+               (auth_url, idp_id, protocol_id, origin))
+    else:
+        # If no IDP mapping found for the identifier,
+        # perform WebSSO by protocol.
+        url = ('%s/auth/OS-FEDERATION/websso/%s?origin=%s' %
+               (auth_url, protocol_id, origin))
+
+    return url
+
+
 def has_in_url_path(url, sub):
     """Test if the `sub` string is in the `url` path."""
     scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
@@ -317,65 +388,3 @@ def get_endpoint_region(endpoint):
     Keystone V2 and V3.
     """
     return endpoint.get('region_id') or endpoint.get('region')
-
-
-if django.VERSION < (1, 7):
-    try:
-        from importlib import import_module
-    except ImportError:
-        # NOTE(jamielennox): importlib was introduced in python 2.7. This is
-        # copied from the backported importlib library. See:
-        # http://svn.python.org/projects/python/trunk/Lib/importlib/__init__.py
-
-        def _resolve_name(name, package, level):
-            """Return the absolute name of the module to be imported."""
-            if not hasattr(package, 'rindex'):
-                raise ValueError("'package' not set to a string")
-            dot = len(package)
-            for x in xrange(level, 1, -1):
-                try:
-                    dot = package.rindex('.', 0, dot)
-                except ValueError:
-                    raise ValueError("attempted relative import beyond "
-                                     "top-level package")
-            return "%s.%s" % (package[:dot], name)
-
-        def import_module(name, package=None):
-            """Import a module.
-
-            The 'package' argument is required when performing a relative
-            import. It specifies the package to use as the anchor point from
-            which to resolve the relative import to an absolute import.
-            """
-            if name.startswith('.'):
-                if not package:
-                    raise TypeError("relative imports require the "
-                                    "'package' argument")
-                level = 0
-                for character in name:
-                    if character != '.':
-                        break
-                    level += 1
-                name = _resolve_name(name[level:], package, level)
-            __import__(name)
-            return sys.modules[name]
-
-    # NOTE(jamielennox): copied verbatim from django 1.7
-    def import_string(dotted_path):
-        try:
-            module_path, class_name = dotted_path.rsplit('.', 1)
-        except ValueError:
-            msg = "%s doesn't look like a module path" % dotted_path
-            six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
-
-        module = import_module(module_path)
-
-        try:
-            return getattr(module, class_name)
-        except AttributeError:
-            msg = 'Module "%s" does not define a "%s" attribute/class' % (
-                dotted_path, class_name)
-            six.reraise(ImportError, ImportError(msg), sys.exc_info()[2])
-
-else:
-    from django.utils.module_loading import import_string  # noqa
