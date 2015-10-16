@@ -9,27 +9,27 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@  --with python2
+	dh $@  --with python2,python3
 
 override_dh_auto_install:
-	set -e && for pyvers in $(PYTHONS); do \
+	set -e ; for pyvers in $(PYTHONS); do \
 		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python-openstack-auth; \
+			--root $(CURDIR)/debian/python-django-openstack-auth; \
 	done
-#	set -e && for pyvers in $(PYTHON3S); do \
-#		python$$pyvers setup.py install --install-layout=deb \
-#			--root $(CURDIR)/debian/python3-openstack-auth; \
-#	done
+	set -e ; for pyvers in $(PYTHON3S); do \
+		python$$pyvers setup.py install --install-layout=deb \
+			--root $(CURDIR)/debian/python3-django-openstack-auth; \
+	done
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	set -e && for pyversion in $(shell pyversions -r); do \
+	set -e ; for pyversion in 2.7 ; do \
 		NOSE_WITH_OPENSTACK=1 \
 		NOSE_OPENSTACK_COLOR=1 \
 		NOSE_OPENSTACK_RED=0.05 \
 		NOSE_OPENSTACK_YELLOW=0.025 \
 		NOSE_OPENSTACK_SHOW_ELAPSED=1 \
-		PYTHONPATH=. $$pyversion openstack_auth/tests/run_tests.py ; \
+		PYTHONPATH=. python$$pyversion openstack_auth/tests/run_tests.py ; \
 	done
 endif
 
