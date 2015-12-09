@@ -1,3 +1,9 @@
+python-django-openstack-auth (2.0.1-1) experimental; urgency=medium
+
+  * New upstream release.
+
+ -- Thomas Goirand <zigo@debian.org>  Thu, 10 Dec 2015 00:48:05 +0100
+
 python-django-openstack-auth (2.0.0-3) unstable; urgency=medium
 
   * Transition from python-openstack-auth to python-django-openstack-auth.
