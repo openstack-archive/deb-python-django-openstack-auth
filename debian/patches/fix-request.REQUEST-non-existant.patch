@@ -1,0 +1,25 @@
+Description: Fix request.REQUEST.get() non existant function
+Author: Thomas Goirand <zigo@debian.org>
+Forwarded: no
+Last-Update: 2015-12-16
+
+--- python-django-openstack-auth-2.0.0.orig/openstack_auth/views.py
++++ python-django-openstack-auth-2.0.0/openstack_auth/views.py
+@@ -226,7 +226,7 @@ def switch(request, tenant_id, redirect_
+ 
+     # Ensure the user-originating redirection url is safe.
+     # Taken from django.contrib.auth.views.login()
+-    redirect_to = request.REQUEST.get(redirect_field_name, '')
++    redirect_to = request.GET.get(redirect_field_name, '')
+     if not is_safe_url(url=redirect_to, host=request.get_host()):
+         redirect_to = settings.LOGIN_REDIRECT_URL
+ 
+@@ -263,7 +263,7 @@ def switch_region(request, region_name,
+         LOG.debug('Switching services region to %s for user "%s".'
+                   % (region_name, request.user.username))
+ 
+-    redirect_to = request.REQUEST.get(redirect_field_name, '')
++    redirect_to = request.GET.get(redirect_field_name, '')
+     if not is_safe_url(url=redirect_to, host=request.get_host()):
+         redirect_to = settings.LOGIN_REDIRECT_URL
+ 
