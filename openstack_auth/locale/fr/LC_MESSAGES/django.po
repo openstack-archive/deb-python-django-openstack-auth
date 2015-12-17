@@ -29,7 +29,6 @@ msgstr ""
 "X-Generator: Zanata 3.7.1\n"
 "Language-Team: French\n"
 
-#, fuzzy
 msgid "An error occurred authenticating. Please try again later."
 msgstr ""
 "Une erreur s'est produite pendant l'authentification. Veuillez réessayer "
@@ -44,7 +43,6 @@ msgstr "Domaine"
 msgid "Invalid credentials."
 msgstr "Informations d'identification non valides."
 
-#, fuzzy
 msgid ""
 "No authentication backend could be determined to handle the provided "
 "credentials."
@@ -60,7 +58,7 @@ msgstr "Le changement de projet a échoué pour l'utilisateur \"%(username)s\"."
 msgid "Region"
 msgstr "Région"
 
-#, fuzzy, python-format
+#, python-format
 msgid "Switch to project \"%(project_name)s\" successful."
 msgstr "Bascule vers le projet \"%(project_name)s\" réussie. "
 
