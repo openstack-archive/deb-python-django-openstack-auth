@@ -12,27 +12,23 @@
 # limitations under the License.
 
 import datetime
-import functools
 import logging
 
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import middleware
 from django.contrib.auth import models
-from django.utils import decorators
 from django.utils import timezone
-from keystoneclient.auth.identity import v2 as v2_auth
-from keystoneclient.auth.identity import v3 as v3_auth
-from keystoneclient.auth import token_endpoint
-from keystoneclient import session
+from keystoneauth1.identity import v2 as v2_auth
+from keystoneauth1.identity import v3 as v3_auth
+from keystoneauth1 import session
+from keystoneauth1 import token_endpoint
 from keystoneclient.v2_0 import client as client_v2
 from keystoneclient.v3 import client as client_v3
 from six.moves.urllib import parse as urlparse
 
 
 LOG = logging.getLogger(__name__)
-
-_PROJECT_CACHE = {}
 
 _TOKEN_TIMEOUT_MARGIN = getattr(settings, 'TOKEN_TIMEOUT_MARGIN', 0)
 
@@ -116,35 +112,11 @@ def is_safe_url(url, host=None):
     return not netloc or netloc == host
 
 
-def memoize_by_keyword_arg(cache, kw_keys):
-    """Memoize a function using the list of keyword argument name as its key.
-
-    Wrap a function so that results for any keyword argument tuple are stored
-    in 'cache'. Note that the keyword args to the function must be usable as
-    dictionary keys.
-
-    :param cache: Dictionary object to store the results.
-    :param kw_keys: List of keyword arguments names. The values are used
-                    for generating the key in the cache.
-    """
-    def _decorator(func):
-        @functools.wraps(func, assigned=decorators.available_attrs(func))
-        def wrapper(*args, **kwargs):
-            mem_args = [kwargs[key] for key in kw_keys if key in kwargs]
-            mem_args = '__'.join(str(mem_arg) for mem_arg in mem_args)
-            if not mem_args:
-                return func(*args, **kwargs)
-            if mem_args in cache:
-                return cache[mem_args]
-            result = func(*args, **kwargs)
-            cache[mem_args] = result
-            return result
-        return wrapper
-    return _decorator
-
-
+# DEPRECATED -- Mitaka
+# This method definition is included to prevent breaking backward compatibility
+# The original functionality was problematic and has been removed.
 def remove_project_cache(token):
-    _PROJECT_CACHE.pop(token, None)
+    pass
 
 
 # Helper for figuring out keystone version
@@ -298,13 +270,18 @@ def fix_auth_url_version(auth_url):
     return auth_url
 
 
-def get_token_auth_plugin(auth_url, token, project_id=None):
+def get_token_auth_plugin(auth_url, token, project_id=None, domain_name=None):
     if get_keystone_version() >= 3:
-        return v3_auth.Token(auth_url=auth_url,
-                             token=token,
-                             project_id=project_id,
-                             reauthenticate=False)
-
+        if domain_name:
+            return v3_auth.Token(auth_url=auth_url,
+                                 token=token,
+                                 domain_name=domain_name,
+                                 reauthenticate=False)
+        else:
+            return v3_auth.Token(auth_url=auth_url,
+                                 token=token,
+                                 project_id=project_id,
+                                 reauthenticate=False)
     else:
         return v2_auth.Token(auth_url=auth_url,
                              token=token,
@@ -312,7 +289,6 @@ def get_token_auth_plugin(auth_url, token, project_id=None):
                              reauthenticate=False)
 
 
-@memoize_by_keyword_arg(_PROJECT_CACHE, ('token', ))
 def get_project_list(*args, **kwargs):
     is_federated = kwargs.get('is_federated', False)
     sess = kwargs.get('session') or get_session()
@@ -388,3 +364,8 @@ def get_endpoint_region(endpoint):
     Keystone V2 and V3.
     """
     return endpoint.get('region_id') or endpoint.get('region')
+
+
+def using_cookie_backed_sessions():
+    engine = getattr(settings, 'SESSION_ENGINE', '')
+    return "signed_cookies" in engine

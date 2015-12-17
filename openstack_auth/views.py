@@ -28,8 +28,8 @@ from django.views.decorators.cache import never_cache  # noqa
 from django.views.decorators.csrf import csrf_exempt  # noqa
 from django.views.decorators.csrf import csrf_protect  # noqa
 from django.views.decorators.debug import sensitive_post_parameters  # noqa
-from keystoneclient.auth import token_endpoint
-from keystoneclient import exceptions as keystone_exceptions
+from keystoneauth1 import exceptions as keystone_exceptions
+from keystoneauth1 import token_endpoint
 import six
 
 from openstack_auth import exceptions
@@ -114,6 +114,8 @@ def login(request, template_name=None, extra_context=None, **kwargs):
     if request.method == "POST":
         utils.set_response_cookie(res, 'login_region',
                                   request.POST.get('region', ''))
+        utils.set_response_cookie(res, 'login_domain',
+                                  request.POST.get('domain', ''))
 
     # Set the session data here because django's session key rotation
     # will erase it if we set it earlier.
@@ -165,9 +167,17 @@ def logout(request, login_url=None, **kwargs):
         {'username': request.user.username}
     LOG.info(msg)
     endpoint = request.session.get('region_endpoint')
+
+    # delete the project scoped token
     token = request.session.get('token')
     if token and endpoint:
         delete_token(endpoint=endpoint, token_id=token.id)
+
+    # delete the domain scoped token if set
+    domain_token = request.session.get('domain_token')
+    if domain_token and endpoint:
+        delete_token(endpoint=endpoint, token_id=domain_token.auth_token)
+
     """ Securely logs a user out. """
     return django_auth_views.logout_then_login(request, login_url=login_url,
                                                **kwargs)
@@ -175,8 +185,6 @@ def logout(request, login_url=None, **kwargs):
 
 def delete_token(endpoint, token_id):
     """Delete a token."""
-    utils.remove_project_cache(token_id)
-
     try:
         endpoint = utils.fix_auth_url_version(endpoint)
 

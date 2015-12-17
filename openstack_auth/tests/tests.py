@@ -18,11 +18,11 @@ from django.contrib import auth
 from django.core.urlresolvers import reverse
 from django import http
 from django import test
-from keystoneclient.auth.identity import v2 as auth_v2
-from keystoneclient.auth.identity import v3 as auth_v3
-from keystoneclient.auth import token_endpoint
-from keystoneclient import exceptions as keystone_exceptions
-from keystoneclient import session
+from keystoneauth1 import exceptions as keystone_exceptions
+from keystoneauth1.identity import v2 as v2_auth
+from keystoneauth1.identity import v3 as v3_auth
+from keystoneauth1 import session
+from keystoneauth1 import token_endpoint
 from keystoneclient.v2_0 import client as client_v2
 from keystoneclient.v3 import client as client_v3
 import mock
@@ -100,7 +100,7 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
     def setUp(self):
         super(OpenStackAuthTestsV2, self).setUp()
 
-        if self.interface:
+        if getattr(self, 'interface', None):
             override = self.settings(OPENSTACK_ENDPOINT_TYPE=self.interface)
             override.enable()
             self.addCleanup(override.disable)
@@ -116,8 +116,8 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         settings.OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v2.0"
 
         self.mox.StubOutClassWithMocks(token_endpoint, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v2, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v2, 'Password')
+        self.mox.StubOutClassWithMocks(v2_auth, 'Token')
+        self.mox.StubOutClassWithMocks(v2_auth, 'Password')
         self.mox.StubOutClassWithMocks(client_v2, 'Client')
 
     def _mock_unscoped_list_tenants(self, client, tenants):
@@ -152,7 +152,7 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         if not url:
             url = settings.OPENSTACK_KEYSTONE_URL
 
-        return auth_v2.Password(auth_url=url,
+        return v2_auth.Password(auth_url=url,
                                 password=password,
                                 username=username)
 
@@ -163,7 +163,7 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         if not url:
             url = settings.OPENSTACK_KEYSTONE_URL
 
-        return auth_v2.Token(auth_url=url,
+        return v2_auth.Token(auth_url=url,
                              token=token,
                              tenant_id=project_id,
                              reauthenticate=False)
@@ -332,7 +332,7 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         scoped = self.data.scoped_access_info
         sc = self.data.service_catalog
         et = getattr(settings, 'OPENSTACK_ENDPOINT_TYPE', 'publicURL')
-        endpoint = sc.url_for(endpoint_type=et)
+        endpoint = sc.url_for(service_type='identity', interface=et)
 
         form_data = self.get_form_data(user)
 
@@ -354,7 +354,7 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
 
         url = reverse('switch_tenants', args=[tenant.id])
 
-        scoped['token']['tenant']['id'] = self.data.tenant_two.id
+        scoped._token['tenant']['id'] = self.data.tenant_two.id
 
         if next:
             form_data.update({auth.REDIRECT_FIELD_NAME: next})
@@ -436,35 +436,6 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
             token=unscoped.auth_token)
         self.assertEqual(tenant_list, expected_tenants)
 
-    def test_tenant_list_caching(self):
-        tenants = [self.data.tenant_two, self.data.tenant_one]
-        expected_tenants = [self.data.tenant_one, self.data.tenant_two]
-        user = self.data.user
-        unscoped = self.data.unscoped_access_info
-
-        client = self._mock_unscoped_client_with_token(user, unscoped)
-        self._mock_unscoped_list_tenants(client, tenants)
-        self.mox.ReplayAll()
-
-        tenant_list = utils.get_project_list(
-            user_id=user.id,
-            auth_url=settings.OPENSTACK_KEYSTONE_URL,
-            token=unscoped.auth_token)
-        self.assertEqual(tenant_list, expected_tenants)
-
-        # Test to validate that requesting the project list again results
-        # to using the cache and will not make a Keystone call.
-        self.assertEqual(utils._PROJECT_CACHE.get(unscoped.auth_token),
-                         expected_tenants)
-        tenant_list = utils.get_project_list(
-            user_id=user.id,
-            auth_url=settings.OPENSTACK_KEYSTONE_URL,
-            token=unscoped.auth_token)
-        self.assertEqual(tenant_list, expected_tenants)
-
-        utils.remove_project_cache(unscoped.auth_token)
-        self.assertIsNone(utils._PROJECT_CACHE.get(unscoped.auth_token))
-
 
 class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
@@ -485,6 +456,32 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         client.projects.list(user=user.id).AndRaise(
             keystone_exceptions.AuthorizationFailure)
 
+    def _mock_unscoped_and_domain_list_projects(self, user, projects):
+        client = self._mock_unscoped_client(user)
+        self._mock_scoped_for_domain(projects)
+        self._mock_unscoped_list_projects(client, user, projects)
+
+    def _mock_scoped_for_domain(self, projects):
+        url = settings.OPENSTACK_KEYSTONE_URL
+
+        plugin = self._create_token_auth(
+            project_id=None,
+            domain_name=DEFAULT_DOMAIN,
+            token=self.data.unscoped_access_info.auth_token,
+            url=url)
+
+        plugin.get_access(mox.IsA(session.Session)).AndReturn(
+            self.data.domain_scoped_access_info)
+
+        # if no projects or no enabled projects for user, but domain scoped
+        # token client auth gets set to domain scoped auth otherwise it's set
+        # to the project scoped auth and that happens in a different mock
+        enabled_projects = [project for project in projects if project.enabled]
+        if not projects or not enabled_projects:
+            return self.ks_client_module.Client(
+                session=mox.IsA(session.Session),
+                auth=plugin)
+
     def _create_password_auth(self, username=None, password=None, url=None):
         if not username:
             username = self.data.user.name
@@ -495,23 +492,30 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         if not url:
             url = settings.OPENSTACK_KEYSTONE_URL
 
-        return auth_v3.Password(auth_url=url,
+        return v3_auth.Password(auth_url=url,
                                 password=password,
                                 username=username,
                                 user_domain_name=DEFAULT_DOMAIN,
                                 unscoped=True)
 
-    def _create_token_auth(self, project_id, token=None, url=None):
+    def _create_token_auth(self, project_id, token=None, url=None,
+                           domain_name=None):
         if not token:
             token = self.data.unscoped_access_info.auth_token
 
         if not url:
             url = settings.OPENSTACK_KEYSTONE_URL
 
-        return auth_v3.Token(auth_url=url,
-                             token=token,
-                             project_id=project_id,
-                             reauthenticate=False)
+        if domain_name:
+            return v3_auth.Token(auth_url=url,
+                                 token=token,
+                                 domain_name=domain_name,
+                                 reauthenticate=False)
+        else:
+            return v3_auth.Token(auth_url=url,
+                                 token=token,
+                                 project_id=project_id,
+                                 reauthenticate=False)
 
     def setUp(self):
         super(OpenStackAuthTestsV3, self).setUp()
@@ -527,13 +531,12 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         self.data = data_v3.generate_test_data()
         self.ks_client_module = client_v3
-
         settings.OPENSTACK_API_VERSIONS['identity'] = 3
         settings.OPENSTACK_KEYSTONE_URL = "http://localhost:5000/v3"
 
         self.mox.StubOutClassWithMocks(token_endpoint, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v3, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v3, 'Password')
+        self.mox.StubOutClassWithMocks(v3_auth, 'Token')
+        self.mox.StubOutClassWithMocks(v3_auth, 'Password')
         self.mox.StubOutClassWithMocks(client_v3, 'Client')
 
     def test_login(self):
@@ -542,7 +545,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         unscoped = self.data.unscoped_access_info
 
         form_data = self.get_form_data(user)
-        self._mock_unscoped_client_list_projects(user, projects)
+        self._mock_unscoped_and_domain_list_projects(user, projects)
         self._mock_scoped_client_for_tenant(unscoped, self.data.project_one.id)
 
         self.mox.ReplayAll()
@@ -565,7 +568,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         unscoped = self.data.unscoped_access_info
 
         form_data = self.get_form_data(user)
-        self._mock_unscoped_client_list_projects(user, projects)
+        self._mock_unscoped_and_domain_list_projects(user, projects)
         self._mock_scoped_client_for_tenant(unscoped, self.data.project_one.id)
         self.mox.ReplayAll()
 
@@ -585,7 +588,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         form_data = self.get_form_data(user)
 
-        self._mock_unscoped_client_list_projects(user, projects)
+        self._mock_unscoped_and_domain_list_projects(user, projects)
         self.mox.ReplayAll()
 
         url = reverse('login')
@@ -596,15 +599,13 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         # POST to the page to log in.
         response = self.client.post(url, form_data)
-        self.assertTemplateUsed(response, 'auth/login.html')
-        self.assertContains(response,
-                            'You are not authorized for any projects.')
+        self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
 
     def test_no_projects(self):
         user = self.data.user
-
         form_data = self.get_form_data(user)
-        self._mock_unscoped_client_list_projects(user, [])
+
+        self._mock_unscoped_and_domain_list_projects(user, [])
         self.mox.ReplayAll()
 
         url = reverse('login')
@@ -615,9 +616,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         # POST to the page to log in.
         response = self.client.post(url, form_data)
-        self.assertTemplateUsed(response, 'auth/login.html')
-        self.assertContains(response,
-                            'You are not authorized for any projects.')
+        self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
 
     def test_fail_projects(self):
         user = self.data.user
@@ -692,12 +691,12 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         form_data = self.get_form_data(user)
 
-        self._mock_unscoped_client_list_projects(user, projects)
+        self._mock_unscoped_and_domain_list_projects(user, projects)
         self._mock_scoped_client_for_tenant(scoped, self.data.project_one.id)
         self._mock_scoped_client_for_tenant(
             scoped,
             project.id,
-            url=sc.url_for(endpoint_type=et),
+            url=sc.url_for(service_type='identity', interface=et),
             client=False)
 
         self.mox.ReplayAll()
@@ -712,7 +711,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
 
         url = reverse('switch_tenants', args=[project.id])
 
-        scoped['project']['id'] = self.data.project_two.id
+        scoped._project['id'] = self.data.project_two.id
 
         if next:
             form_data.update({auth.REDIRECT_FIELD_NAME: next})
@@ -738,7 +737,7 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         sc = self.data.service_catalog
 
         form_data = self.get_form_data(user)
-        self._mock_unscoped_client_list_projects(user, projects)
+        self._mock_unscoped_and_domain_list_projects(user, projects)
         self._mock_scoped_client_for_tenant(scoped, self.data.project_one.id)
 
         self.mox.ReplayAll()
@@ -791,36 +790,6 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
             token=unscoped.auth_token)
         self.assertEqual(project_list, expected_projects)
 
-    def test_tenant_list_caching(self):
-        projects = [self.data.project_two, self.data.project_one]
-        expected_projects = [self.data.project_one, self.data.project_two]
-        user = self.data.user
-        unscoped = self.data.unscoped_access_info
-
-        client = self._mock_unscoped_client_with_token(user, unscoped)
-        self._mock_unscoped_list_projects(client, user, projects)
-
-        self.mox.ReplayAll()
-
-        project_list = utils.get_project_list(
-            user_id=user.id,
-            auth_url=settings.OPENSTACK_KEYSTONE_URL,
-            token=unscoped.auth_token)
-        self.assertEqual(project_list, expected_projects)
-
-        # Test to validate that requesting the project list again results
-        # to using the cache and will not make a Keystone call.
-        self.assertEqual(utils._PROJECT_CACHE.get(unscoped.auth_token),
-                         expected_projects)
-        project_list = utils.get_project_list(
-            user_id=user.id,
-            auth_url=settings.OPENSTACK_KEYSTONE_URL,
-            token=unscoped.auth_token)
-        self.assertEqual(project_list, expected_projects)
-
-        utils.remove_project_cache(unscoped.auth_token)
-        self.assertIsNone(utils._PROJECT_CACHE.get(unscoped.auth_token))
-
 
 class OpenStackAuthTestsWebSSO(OpenStackAuthTestsMixin, test.TestCase):
 
@@ -831,7 +800,7 @@ class OpenStackAuthTestsWebSSO(OpenStackAuthTestsMixin, test.TestCase):
         if not url:
             url = settings.OPENSTACK_KEYSTONE_URL
 
-        return auth_v3.Token(auth_url=url,
+        return v3_auth.Token(auth_url=url,
                              token=token,
                              project_id=project_id,
                              reauthenticate=False)
@@ -885,8 +854,8 @@ class OpenStackAuthTestsWebSSO(OpenStackAuthTestsMixin, test.TestCase):
         }
 
         self.mox.StubOutClassWithMocks(token_endpoint, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v3, 'Token')
-        self.mox.StubOutClassWithMocks(auth_v3, 'Password')
+        self.mox.StubOutClassWithMocks(v3_auth, 'Token')
+        self.mox.StubOutClassWithMocks(v3_auth, 'Password')
         self.mox.StubOutClassWithMocks(client_v3, 'Client')
 
     def test_login_form(self):
@@ -1064,5 +1033,45 @@ class PolicyTestCaseAdmin(PolicyTestCase):
     def test_check_nova_context_is_admin_true(self):
         policy.reset()
         value = policy.check((("compute", "context_is_admin"),),
+                             request=self.request)
+        self.assertTrue(value)
+
+
+class PolicyTestCaseV3Admin(PolicyTestCase):
+    _roles = [{'id': '1', 'name': 'admin'}]
+
+    def setUp(self):
+        policy_files = {
+            'identity': 'policy.v3cloudsample.json',
+            'compute': 'nova_policy.json'}
+
+        override = self.settings(POLICY_FILES=policy_files)
+        override.enable()
+        self.addCleanup(override.disable)
+
+        mock_user = user.User(id=1, roles=self._roles,
+                              user_domain_id='admin_domain_id')
+        patcher = mock.patch('openstack_auth.utils.get_user',
+                             return_value=mock_user)
+        self.MockClass = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.request = http.HttpRequest()
+
+    def test_check_cloud_admin_required_true(self):
+        policy.reset()
+        value = policy.check((("identity", "cloud_admin"),),
+                             request=self.request)
+        self.assertTrue(value)
+
+    def test_check_domain_admin_required_true(self):
+        policy.reset()
+        value = policy.check((
+            ("identity", "admin_and_matching_domain_id"),),
+            request=self.request)
+        self.assertTrue(value)
+
+    def test_check_any_admin_required_true(self):
+        policy.reset()
+        value = policy.check((("identity", "admin_or_cloud_admin"),),
                              request=self.request)
         self.assertTrue(value)

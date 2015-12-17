@@ -17,8 +17,8 @@ import logging
 from django.conf import settings
 from django.contrib.auth import models
 from django.db import models as db_models
+from keystoneauth1 import exceptions as keystone_exceptions
 from keystoneclient.common import cms as keystone_cms
-from keystoneclient import exceptions as keystone_exceptions
 import six
 
 from openstack_auth import utils
@@ -113,13 +113,8 @@ class Token(object):
 
         # Federation-related attributes
         self.is_federated = auth_ref.is_federated
-
-        if auth_ref.version == 'v2.0':
-            self.roles = auth_ref['user'].get('roles', [])
-        else:
-            self.roles = auth_ref.get('roles', [])
-
-        self.serviceCatalog = auth_ref.service_catalog.get_data()
+        self.roles = [{'name': role} for role in auth_ref.role_names]
+        self.serviceCatalog = auth_ref.service_catalog.catalog
 
 
 class User(models.AbstractBaseUser, models.AnonymousUser):
@@ -298,12 +293,12 @@ class User(models.AbstractBaseUser, models.AnonymousUser):
 
         Returns ``True`` or ``False``.
         """
-        admin_roles = [role.lower() for role in getattr(
+        admin_roles = {role.lower() for role in getattr(
             settings,
             'OPENSTACK_KEYSTONE_ADMIN_ROLES',
-            ['admin'])]
-        user_roles = [role['name'].lower() for role in self.roles]
-        return True if set(admin_roles).intersection(user_roles) else False
+            ['admin'])}
+        user_roles = {role['name'].lower() for role in self.roles}
+        return not admin_roles.isdisjoint(user_roles)
 
     @property
     def authorized_tenants(self):
