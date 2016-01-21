@@ -23,11 +23,11 @@ Fixes-Bug: 1493578
 Change-Id: I34d9741df550122156d014933daf98679bae0410
 Origin: upstream, https://review.openstack.org/#/c/220382/
 
-diff --git a/openstack_auth/utils.py b/openstack_auth/utils.py
-index 1998bcf..0a8d6c0 100644
---- a/openstack_auth/utils.py
-+++ b/openstack_auth/utils.py
-@@ -64,9 +64,14 @@ def get_user(request):
+Index: python-django-openstack-auth/openstack_auth/utils.py
+===================================================================
+--- python-django-openstack-auth.orig/openstack_auth/utils.py
++++ python-django-openstack-auth/openstack_auth/utils.py
+@@ -60,9 +60,14 @@ def get_user(request):
      return user
  
  

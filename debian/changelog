@@ -6,6 +6,7 @@ python-django-openstack-auth (2.1.1-1) experimental; urgency=medium
 
   [ Thomas Goirand ]
   * Fixed debian/copyright ordering.
+  * Re-applied Django 1.9 and REQUEST patches.
 
  -- Thomas Goirand <zigo@debian.org>  Thu, 21 Jan 2016 07:45:26 +0000
 

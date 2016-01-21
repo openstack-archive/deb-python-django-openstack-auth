@@ -1,0 +1,57 @@
+Description: Fix checks of redirection.
+Author: Thomas Goirand <zigo@debian.org>
+Forwarded: no
+Last-Update: 2015-12-16
+
+Index: python-django-openstack-auth/openstack_auth/tests/tests.py
+===================================================================
+--- python-django-openstack-auth.orig/openstack_auth/tests/tests.py
++++ python-django-openstack-auth/openstack_auth/tests/tests.py
+@@ -363,7 +363,10 @@ class OpenStackAuthTestsV2(OpenStackAuth
+ 
+         if next:
+             expected_url = 'http://testserver%s' % next
+-            self.assertEqual(response['location'], expected_url)
++            try:
++                self.assertEqual(response['location'], expected_url)
++            except AssertionError:
++                self.assertEqual(response['location'], next)
+         else:
+             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
+ 
+@@ -409,7 +412,10 @@ class OpenStackAuthTestsV2(OpenStackAuth
+ 
+         if next:
+             expected_url = 'http://testserver%s' % next
+-            self.assertEqual(response['location'], expected_url)
++            try:
++                self.assertEqual(response['location'], expected_url)
++            except:
++                self.assertEqual(response['location'], next)
+         else:
+             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
+ 
+@@ -720,7 +726,10 @@ class OpenStackAuthTestsV3(OpenStackAuth
+ 
+         if next:
+             expected_url = 'http://testserver%s' % next
+-            self.assertEqual(response['location'], expected_url)
++            try:
++                self.assertEqual(response['location'], expected_url)
++            except:
++                self.assertEqual(response['location'], next)
+         else:
+             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
+ 
+@@ -765,7 +774,10 @@ class OpenStackAuthTestsV3(OpenStackAuth
+ 
+         if next:
+             expected_url = 'http://testserver%s' % next
+-            self.assertEqual(response['location'], expected_url)
++            try:
++                self.assertEqual(response['location'], expected_url)
++            except:
++                self.assertEqual(response['location'], next)
+         else:
+             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
+ 
