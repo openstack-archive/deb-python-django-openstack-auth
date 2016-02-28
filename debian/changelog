@@ -1,3 +1,9 @@
+python-django-openstack-auth (2.1.1-2) UNRELEASED; urgency=medium
+
+  * Fixed homepage (https).
+
+ -- Ondřej Nový <novy@ondrej.org>  Sun, 28 Feb 2016 15:36:26 +0100
+
 python-django-openstack-auth (2.1.1-1) experimental; urgency=medium
 
   [ Ivan Udovichenko ]

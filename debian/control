@@ -38,7 +38,7 @@ Build-Depends-Indep: python-babel,
 Standards-Version: 3.9.6
 Vcs-Git: git://anonscm.debian.org/openstack/python-django-openstack-auth.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-django-openstack-auth.git;a=summary
-Homepage: http://pypi.python.org/pypi/django_openstack_auth
+Homepage: https://pypi.python.org/pypi/django_openstack_auth
 
 Package: python-django-openstack-auth
 Architecture: all
