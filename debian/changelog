@@ -11,6 +11,8 @@ python-django-openstack-auth (2.2.1-1) unstable; urgency=medium
   * Removed debian/patches/fix-request.REQUEST-non-existant.patch applied
     upstream.
   * Removed fix-check-of-redirections.patch also applied upstream.
+  * Removed Monkey-patch_to_avoid_breaking_Django_with_hash_user.id.patch as
+    a better solution was implemented.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 06 Apr 2016 08:50:17 +0000
 
