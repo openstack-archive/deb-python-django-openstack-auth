@@ -13,6 +13,7 @@
 
 import datetime
 import logging
+import re
 
 from django.conf import settings
 from django.contrib import auth
@@ -254,12 +255,22 @@ def url_path_replace(url, old, new, count=None):
 
 
 def fix_auth_url_version(auth_url):
-    """Fix up the auth url if an invalid version prefix was given.
+    """Fix up the auth url if an invalid or no version prefix was given.
 
     People still give a v2 auth_url even when they specify that they want v3
-    authentication. Fix the URL to say v3. This should be smarter and take the
-    base, unversioned URL and discovery.
+    authentication. Fix the URL to say v3 in this case and add version if it is
+    missing entirely. This should be smarter and use discovery.
     """
+
+    # Check for empty path component in endpoint URL and add keystone version
+    # to endpoint: as of Kilo, the identity URLs returned by Keystone might no
+    # longer contain API versions, leaving the version choice up to the user.
+    if urlparse.urlparse(auth_url).path.rstrip('/') == '':
+        if get_keystone_version() >= 3:
+            auth_url = urlparse.urljoin(auth_url, 'v3')
+        else:
+            auth_url = urlparse.urljoin(auth_url, 'v2.0')
+
     if get_keystone_version() >= 3:
         if has_in_url_path(auth_url, "/v2.0"):
             LOG.warning("The settings.py file points to a v2.0 keystone "
@@ -268,6 +279,16 @@ def fix_auth_url_version(auth_url):
             auth_url = url_path_replace(auth_url, "/v2.0", "/v3", 1)
 
     return auth_url
+
+
+def clean_up_auth_url(auth_url):
+    """Clean up the auth url to extract the exact Keystone URL"""
+
+    # NOTE(mnaser): This drops the query and fragment because we're only
+    #               trying to extract the Keystone URL.
+    scheme, netloc, path, query, fragment = urlparse.urlsplit(auth_url)
+    return urlparse.urlunsplit((
+        scheme, netloc, re.sub(r'/auth.*', '', path), '', ''))
 
 
 def get_token_auth_plugin(auth_url, token, project_id=None, domain_name=None):
@@ -369,3 +390,48 @@ def get_endpoint_region(endpoint):
 def using_cookie_backed_sessions():
     engine = getattr(settings, 'SESSION_ENGINE', '')
     return "signed_cookies" in engine
+
+
+def get_admin_roles():
+    """Common function for getting the admin roles from settings
+
+       Returns:
+        Set object including all admin roles.
+        If there is no role, this will return empty.
+        {
+            "foo", "bar", "admin"
+        }
+    """
+    admin_roles = {role.lower() for role
+                   in getattr(settings, 'OPENSTACK_KEYSTONE_ADMIN_ROLES',
+                              ['admin'])}
+    return admin_roles
+
+
+def get_role_permission(role):
+    """Common function for getting the permission froms arg
+
+    This format is 'openstack.roles.xxx' and 'xxx' is a real role name.
+
+    Returns:
+        String like "openstack.roles.admin"
+        If role is None, this will return None.
+    """
+    return "openstack.roles.%s" % role.lower()
+
+
+def get_admin_permissions():
+    """Common function for getting the admin permissions from settings
+
+    This format is 'openstack.roles.xxx' and 'xxx' is a real role name.
+
+    Returns:
+        Set object including all admin permission.
+        If there is no permission, this will return empty.
+        {
+            "openstack.roles.foo",
+            "openstack.roles.bar",
+            "openstack.roles.admin"
+        }
+    """
+    return {get_role_permission(role) for role in get_admin_roles()}

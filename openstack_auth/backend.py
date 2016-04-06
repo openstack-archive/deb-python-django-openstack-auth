@@ -100,9 +100,9 @@ class KeystoneBackend(object):
         else:
             msg = _('No authentication backend could be determined to '
                     'handle the provided credentials.')
-            LOG.warn('No authentication backend could be determined to '
-                     'handle the provided credentials. This is likely a '
-                     'configuration error that should be addressed.')
+            LOG.warning('No authentication backend could be determined to '
+                        'handle the provided credentials. This is likely a '
+                        'configuration error that should be addressed.')
             raise exceptions.KeystoneAuthException(msg)
 
         session = utils.get_session()
@@ -217,15 +217,33 @@ class KeystoneBackend(object):
         # Check expiry for our new scoped token.
         self.check_auth_expiry(scoped_auth_ref)
 
+        # We want to try to use the same region we just logged into
+        # which may or may not be the default depending upon the order
+        # keystone uses
+        region_name = None
+        id_endpoints = scoped_auth_ref.service_catalog.\
+            get_endpoints(service_type='identity')
+        for id_endpoint in [cat for cat in id_endpoints['identity']]:
+            if auth_url in id_endpoint.values():
+                region_name = id_endpoint['region']
+                break
+
         interface = getattr(settings, 'OPENSTACK_ENDPOINT_TYPE', 'public')
+
+        endpoint = utils.fix_auth_url_version(
+            scoped_auth_ref.service_catalog.url_for(
+                service_type='identity',
+                interface=interface,
+                region_name=region_name))
 
         # If we made it here we succeeded. Create our User!
         unscoped_token = unscoped_auth_ref.auth_token
+
         user = auth_user.create_user_from_token(
             request,
             auth_user.Token(scoped_auth_ref, unscoped_token=unscoped_token),
-            scoped_auth_ref.service_catalog.url_for(service_type='identity',
-                                                    interface=interface))
+            endpoint,
+            services_region=region_name)
 
         if request is not None:
             request.session['unscoped_token'] = unscoped_token
@@ -276,7 +294,7 @@ class KeystoneBackend(object):
             return set()
         # TODO(gabrielhurley): Integrate policy-driven RBAC
         #                      when supported by Keystone.
-        role_perms = {"openstack.roles.%s" % role['name'].lower()
+        role_perms = {utils.get_role_permission(role['name'])
                       for role in user.roles}
 
         services = []

@@ -13,11 +13,13 @@
 
 import uuid
 
+import django
 from django.conf import settings
 from django.contrib import auth
 from django.core.urlresolvers import reverse
 from django import http
 from django import test
+from django.test.utils import override_settings
 from keystoneauth1 import exceptions as keystone_exceptions
 from keystoneauth1.identity import v2 as v2_auth
 from keystoneauth1.identity import v3 as v3_auth
@@ -362,7 +364,10 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         response = self.client.get(url, form_data)
 
         if next:
-            expected_url = 'http://testserver%s' % next
+            if django.VERSION >= (1, 9):
+                expected_url = next
+            else:
+                expected_url = 'http://testserver%s' % next
             self.assertEqual(response['location'], expected_url)
         else:
             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
@@ -408,7 +413,10 @@ class OpenStackAuthTestsV2(OpenStackAuthTestsMixin, test.TestCase):
         response = self.client.get(url, form_data)
 
         if next:
-            expected_url = 'http://testserver%s' % next
+            if django.VERSION >= (1, 9):
+                expected_url = next
+            else:
+                expected_url = 'http://testserver%s' % next
             self.assertEqual(response['location'], expected_url)
         else:
             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
@@ -719,7 +727,10 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         response = self.client.get(url, form_data)
 
         if next:
-            expected_url = 'http://testserver%s' % next
+            if django.VERSION >= (1, 9):
+                expected_url = next
+            else:
+                expected_url = 'http://testserver%s' % next
             self.assertEqual(response['location'], expected_url)
         else:
             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
@@ -764,7 +775,10 @@ class OpenStackAuthTestsV3(OpenStackAuthTestsMixin, test.TestCase):
         response = self.client.get(url, form_data)
 
         if next:
-            expected_url = 'http://testserver%s' % next
+            if django.VERSION >= (1, 9):
+                expected_url = next
+            else:
+                expected_url = 'http://testserver%s' % next
             self.assertEqual(response['location'], expected_url)
         else:
             self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
@@ -902,6 +916,25 @@ class OpenStackAuthTestsWebSSO(OpenStackAuthTestsMixin, test.TestCase):
                              target_status_code=404)
 
     def test_websso_login(self):
+        projects = [self.data.project_one, self.data.project_two]
+        unscoped = self.data.federated_unscoped_access_info
+        token = unscoped.auth_token
+
+        form_data = {'token': token}
+        self._mock_unscoped_client_list_projects(unscoped, projects)
+        self._mock_scoped_client_for_tenant(unscoped, self.data.project_one.id)
+
+        self.mox.ReplayAll()
+
+        url = reverse('websso')
+
+        # POST to the page to log in.
+        response = self.client.post(url, form_data)
+        self.assertRedirects(response, settings.LOGIN_REDIRECT_URL)
+
+    def test_websso_login_with_auth_in_url(self):
+        settings.OPENSTACK_KEYSTONE_URL = 'http://auth.openstack.org:5000/v3'
+
         projects = [self.data.project_one, self.data.project_two]
         unscoped = self.data.federated_unscoped_access_info
         token = unscoped.auth_token
@@ -1075,3 +1108,51 @@ class PolicyTestCaseV3Admin(PolicyTestCase):
         value = policy.check((("identity", "admin_or_cloud_admin"),),
                              request=self.request)
         self.assertTrue(value)
+
+
+class RoleTestCaseAdmin(test.TestCase):
+
+    def test_get_admin_roles_with_default_value(self):
+        admin_roles = utils.get_admin_roles()
+        self.assertSetEqual({'admin'}, admin_roles)
+
+    @override_settings(OPENSTACK_KEYSTONE_ADMIN_ROLES=['foO', 'BAR', 'admin'])
+    def test_get_admin_roles(self):
+        admin_roles = utils.get_admin_roles()
+        self.assertSetEqual({'foo', 'bar', 'admin'}, admin_roles)
+
+    @override_settings(OPENSTACK_KEYSTONE_ADMIN_ROLES=['foO', 'BAR', 'admin'])
+    def test_get_admin_permissions(self):
+        admin_permissions = utils.get_admin_permissions()
+        self.assertSetEqual({'openstack.roles.foo',
+                             'openstack.roles.bar',
+                             'openstack.roles.admin'}, admin_permissions)
+
+
+class UtilsTestCase(test.TestCase):
+
+    def test_fix_auth_url_version_v20(self):
+        settings.OPENSTACK_API_VERSIONS['identity'] = 2.0
+        test_urls = [
+            ("http://a/", "http://a/v2.0"),
+            ("http://a", "http://a/v2.0"),
+            ("http://a:8080/", "http://a:8080/v2.0"),
+            ("http://a/v2.0", "http://a/v2.0"),
+            ("http://a/v2.0/", "http://a/v2.0/"),
+        ]
+        for src, expected in test_urls:
+            self.assertEqual(expected, utils.fix_auth_url_version(src))
+
+    def test_fix_auth_url_version_v3(self):
+        settings.OPENSTACK_API_VERSIONS['identity'] = 3
+        test_urls = [
+            ("http://a/", "http://a/v3"),
+            ("http://a", "http://a/v3"),
+            ("http://a:8080/", "http://a:8080/v3"),
+            ("http://a/v3", "http://a/v3"),
+            ("http://a/v3/", "http://a/v3/"),
+            ("http://a/v2.0/", "http://a/v3/"),
+            ("http://a/v2.0", "http://a/v3"),
+        ]
+        for src, expected in test_urls:
+            self.assertEqual(expected, utils.fix_auth_url_version(src))

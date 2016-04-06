@@ -11,9 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
-import re
 
-import django
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required  # noqa
@@ -84,13 +82,7 @@ def login(request, template_name=None, extra_context=None, **kwargs):
         initial.update({'region': requested_region})
 
     if request.method == "POST":
-        # NOTE(saschpe): Since https://code.djangoproject.com/ticket/15198,
-        # the 'request' object is passed directly to AuthenticationForm in
-        # django.contrib.auth.views#login:
-        if django.VERSION >= (1, 6):
-            form = functional.curry(forms.Login)
-        else:
-            form = functional.curry(forms.Login, request)
+        form = functional.curry(forms.Login)
     else:
         form = functional.curry(forms.Login, initial=initial)
 
@@ -135,7 +127,7 @@ def login(request, template_name=None, extra_context=None, **kwargs):
 def websso(request):
     """Logs a user in using a token from Keystone's POST."""
     referer = request.META.get('HTTP_REFERER', settings.OPENSTACK_KEYSTONE_URL)
-    auth_url = re.sub(r'/auth.*', '', referer)
+    auth_url = utils.clean_up_auth_url(referer)
     token = request.POST.get('token')
     try:
         request.user = auth.authenticate(request=request, auth_url=auth_url,
@@ -234,7 +226,7 @@ def switch(request, tenant_id, redirect_field_name=auth.REDIRECT_FIELD_NAME):
 
     # Ensure the user-originating redirection url is safe.
     # Taken from django.contrib.auth.views.login()
-    redirect_to = request.REQUEST.get(redirect_field_name, '')
+    redirect_to = request.GET.get(redirect_field_name, '')
     if not is_safe_url(url=redirect_to, host=request.get_host()):
         redirect_to = settings.LOGIN_REDIRECT_URL
 
@@ -271,7 +263,7 @@ def switch_region(request, region_name,
         LOG.debug('Switching services region to %s for user "%s".'
                   % (region_name, request.user.username))
 
-    redirect_to = request.REQUEST.get(redirect_field_name, '')
+    redirect_to = request.GET.get(redirect_field_name, '')
     if not is_safe_url(url=redirect_to, host=request.get_host()):
         redirect_to = settings.LOGIN_REDIRECT_URL
 

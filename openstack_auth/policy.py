@@ -58,8 +58,8 @@ def _get_enforcer():
                 LOG.debug("adding enforcer for service: %s" % service)
                 _ENFORCER[service] = enforcer
             else:
-                LOG.warn("policy file for service: %s not found at %s" %
-                         (service, enforcer.policy_path))
+                LOG.warning("policy file for service: %s not found at %s" %
+                            (service, enforcer.policy_path))
     return _ENFORCER
 
 
@@ -204,13 +204,13 @@ def _domain_to_credentials(request, user):
                 return None
             domain_user = auth_user.create_user_from_token(
                 request, auth_user.Token(domain_auth_ref),
-                domain_auth_ref.service_catalog.url_for(endpoint_type=None))
+                domain_auth_ref.service_catalog.url_for(interface=None))
             user._domain_credentials = _user_to_credentials(domain_user)
 
             # uses the domain_id associated with the domain_user
             user._domain_credentials['domain_id'] = domain_user.domain_id
 
         except Exception:
-            LOG.error("Failed to create user from domain scoped token.")
+            LOG.warning("Failed to create user from domain scoped token.")
             return None
     return user._domain_credentials
