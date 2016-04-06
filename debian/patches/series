@@ -1,3 +1,2 @@
 Monkey-patch_to_avoid_breaking_Django_with_hash_user.id.patch
-fix-request.REQUEST-non-existant.patch
 fix-check-of-redirections.patch

@@ -8,6 +8,8 @@ python-django-openstack-auth (2.2.1-1) unstable; urgency=medium
   * New upstream release.
   * Uploading to unstable.
   * Standards-Version: 3.9.7 (no change).
+  * Removed debian/patches/fix-request.REQUEST-non-existant.patch applied
+    upstream.
 
  -- Thomas Goirand <zigo@debian.org>  Wed, 06 Apr 2016 08:50:17 +0000
 
