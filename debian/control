@@ -35,7 +35,7 @@ Build-Depends-Indep: python-babel,
                      python3-oslo.policy (>= 0.5.0),
                      python3-six (>= 1.9.0),
                      python3-testscenarios,
-Standards-Version: 3.9.7
+Standards-Version: 3.9.8
 Vcs-Git: https://anonscm.debian.org/git/openstack/python-django-openstack-auth.git
 Vcs-Browser: https://anonscm.debian.org/cgit/openstack/python-django-openstack-auth.git/
 Homepage: https://pypi.python.org/pypi/django_openstack_auth
