@@ -1139,6 +1139,10 @@ class UtilsTestCase(test.TestCase):
             ("http://a:8080/", "http://a:8080/v2.0"),
             ("http://a/v2.0", "http://a/v2.0"),
             ("http://a/v2.0/", "http://a/v2.0/"),
+            ("http://a/identity", "http://a/identity/v2.0"),
+            ("http://a/identity/", "http://a/identity/v2.0"),
+            ("http://a:5000/identity/v2.0", "http://a:5000/identity/v2.0"),
+            ("http://a/identity/v2.0/", "http://a/identity/v2.0/")
         ]
         for src, expected in test_urls:
             self.assertEqual(expected, utils.fix_auth_url_version(src))
@@ -1153,6 +1157,23 @@ class UtilsTestCase(test.TestCase):
             ("http://a/v3/", "http://a/v3/"),
             ("http://a/v2.0/", "http://a/v3/"),
             ("http://a/v2.0", "http://a/v3"),
+            ("http://a/identity", "http://a/identity/v3"),
+            ("http://a:5000/identity/", "http://a:5000/identity/v3"),
+            ("http://a/identity/v3", "http://a/identity/v3"),
+            ("http://a/identity/v3/", "http://a/identity/v3/")
         ]
         for src, expected in test_urls:
             self.assertEqual(expected, utils.fix_auth_url_version(src))
+
+
+class UserTestCase(test.TestCase):
+
+    def setUp(self):
+        self.data = data_v3.generate_test_data(pki=True)
+
+    def test_unscoped_token_is_none(self):
+        created_token = user.Token(self.data.domain_scoped_access_info,
+                                   unscoped_token=None)
+        self.assertTrue(created_token._is_pki_token(
+                        self.data.domain_scoped_access_info.auth_token))
+        self.assertFalse(created_token._is_pki_token(None))
