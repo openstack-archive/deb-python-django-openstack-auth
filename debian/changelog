@@ -6,6 +6,7 @@ python-django-openstack-auth (2.3.0-1) UNRELEASED; urgency=medium
 
   [ Corey Bryant ]
   * New upstream release.
+  * d/gbp.conf: Update branch for Newton.
 
  -- Corey Bryant <corey.bryant@canonical.com>  Mon, 06 Jun 2016 11:55:38 -0400
 
