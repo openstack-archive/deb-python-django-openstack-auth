@@ -1,4 +1,4 @@
-python-django-openstack-auth (2.3.0-1) UNRELEASED; urgency=medium
+python-django-openstack-auth (2.3.0-1) experimental; urgency=medium
 
   [ Ondřej Nový ]
   * Standards-Version is 3.9.8 now (no change)
@@ -9,7 +9,10 @@ python-django-openstack-auth (2.3.0-1) UNRELEASED; urgency=medium
   * d/gbp.conf: Update branch for Newton.
   * d/control: Align (Build-)Depends with upstream.
 
- -- Corey Bryant <corey.bryant@canonical.com>  Mon, 06 Jun 2016 11:55:38 -0400
+  [ Thomas Goirand ]
+  * Add Corey Bryant <corey.bryant@canonical.com> to uploaders.
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 14 Jun 2016 15:37:45 +0000
 
 python-django-openstack-auth (2.2.1-1) unstable; urgency=medium
 
