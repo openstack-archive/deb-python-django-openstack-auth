@@ -1,29 +1,17 @@
 #!/usr/bin/make -f
 
-PYTHONS:=$(shell pyversions -vr)
-PYTHON3S:=$(shell py3versions -vr)
-
 UPSTREAM_GIT := https://github.com/openstack/django_openstack_auth.git
 include /usr/share/openstack-pkg-tools/pkgos.make
-
-export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
 	dh $@  --with python2,python3
 
 override_dh_auto_install:
-	set -e ; for pyvers in $(PYTHONS); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python-django-openstack-auth; \
-	done
-	set -e ; for pyvers in $(PYTHON3S); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python3-django-openstack-auth; \
-	done
+	pkgos-dh_auto_install
 
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	set -e ; for pyversion in 2.7 ; do \
+	set -e ; for pyversion in 2.7 $(PYTHON3S) ; do \
 		NOSE_WITH_OPENSTACK=1 \
 		NOSE_OPENSTACK_COLOR=1 \
 		NOSE_OPENSTACK_RED=0.05 \

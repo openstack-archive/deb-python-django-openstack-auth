@@ -1,6 +1,8 @@
 python-django-openstack-auth (2.3.0-2) experimental; urgency=medium
 
   * Fix FTBFS with Django 1.10 (Closes: #828670).
+  * Using pkgos-dh_auto_install from openstack-pkg-tools >= 52~.
+  * Testing using Py3 as well.
 
  -- Thomas Goirand <zigo@debian.org>  Tue, 19 Jul 2016 07:28:10 +0000
 
