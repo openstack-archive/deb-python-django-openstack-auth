@@ -1,0 +1,9 @@
+Code-Review+2: Matthias Runge <mrunge@redhat.com>
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Workflow+1: David Lyle <dklyle0@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 01 Oct 2015 15:49:30 +0000
+Reviewed-on: https://review.openstack.org/228114
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/liberty
