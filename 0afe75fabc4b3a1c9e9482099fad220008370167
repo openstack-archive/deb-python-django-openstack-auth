@@ -1,0 +1,10 @@
+Code-Review+1: Itxaka Serrano Garcia <igarcia@suse.com>
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+2: Travis Tripp <travis.tripp@hpe.com>
+Workflow+1: Travis Tripp <travis.tripp@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 29 Jun 2016 19:45:10 +0000
+Reviewed-on: https://review.openstack.org/335422
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master

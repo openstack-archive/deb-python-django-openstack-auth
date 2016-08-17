@@ -1,0 +1,8 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Workflow+1: David Lyle <dklyle0@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 05 Aug 2016 03:24:48 +0000
+Reviewed-on: https://review.openstack.org/351401
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master

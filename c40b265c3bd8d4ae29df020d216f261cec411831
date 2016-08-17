@@ -1,0 +1,9 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+2: Thai Tran <tqtran@us.ibm.com>
+Workflow+1: Thai Tran <tqtran@us.ibm.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 20 Jun 2016 18:39:38 +0000
+Reviewed-on: https://review.openstack.org/330131
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master

@@ -1,0 +1,9 @@
+Code-Review+2: Thai Tran <tqtran@us.ibm.com>
+Code-Review+2: Travis Tripp <travis.tripp@hpe.com>
+Workflow+1: Travis Tripp <travis.tripp@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 13 Jun 2016 16:41:23 +0000
+Reviewed-on: https://review.openstack.org/328742
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
