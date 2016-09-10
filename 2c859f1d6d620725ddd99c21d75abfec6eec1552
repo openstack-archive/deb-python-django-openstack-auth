@@ -1,0 +1,11 @@
+Code-Review+1: Tyr Johanson <tyr@hpe.com>
+Code-Review+1: Steve McLellan <steven.j.mclellan@gmail.com>
+Code-Review+2: Rob Cresswell <robert.cresswell@outlook.com>
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Workflow+1: David Lyle <dklyle0@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 09 Sep 2016 18:56:13 +0000
+Reviewed-on: https://review.openstack.org/367610
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
