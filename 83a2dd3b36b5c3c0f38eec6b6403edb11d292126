@@ -1,0 +1,11 @@
+Code-Review+1: Tatiana Ovchinnikova <t.v.ovtchinnikova@gmail.com>
+Code-Review+1: Akihiro Motoki <amotoki@gmail.com>
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+2: Davanum Srinivas (dims) <davanum@gmail.com>
+Workflow+1: Davanum Srinivas (dims) <davanum@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 07 Apr 2016 12:10:30 +0000
+Reviewed-on: https://review.openstack.org/300321
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/mitaka

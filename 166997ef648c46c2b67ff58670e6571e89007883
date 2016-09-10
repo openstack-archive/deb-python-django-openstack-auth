@@ -1,0 +1,8 @@
+Code-Review+2: Lin Hua Cheng <os.lcheng@gmail.com>
+Workflow+1: Lin Hua Cheng <os.lcheng@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 16 Apr 2016 20:14:25 +0000
+Reviewed-on: https://review.openstack.org/304964
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/mitaka

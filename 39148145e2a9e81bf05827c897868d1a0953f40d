@@ -1,0 +1,9 @@
+Code-Review+2: Thai Tran <tqtran@us.ibm.com>
+Code-Review+2: Tony Breeds <tony@bakeyournoodle.com>
+Workflow+1: Tony Breeds <tony@bakeyournoodle.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 09 Jun 2016 08:24:44 +0000
+Reviewed-on: https://review.openstack.org/325532
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/mitaka
