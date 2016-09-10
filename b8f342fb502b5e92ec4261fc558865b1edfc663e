@@ -1,0 +1,9 @@
+Code-Review+2: Matthias Runge <mrunge@redhat.com>
+Code-Review+2: Lin Hua Cheng <os.lcheng@gmail.com>
+Workflow+1: Lin Hua Cheng <os.lcheng@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 25 Jan 2016 18:52:42 +0000
+Reviewed-on: https://review.openstack.org/265756
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/liberty

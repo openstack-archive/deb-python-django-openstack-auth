@@ -1,0 +1,9 @@
+Code-Review+2: Lin Hua Cheng <os.lcheng@gmail.com>
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Workflow+1: David Lyle <dklyle0@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 12 Oct 2015 16:01:42 +0000
+Reviewed-on: https://review.openstack.org/230285
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/liberty
