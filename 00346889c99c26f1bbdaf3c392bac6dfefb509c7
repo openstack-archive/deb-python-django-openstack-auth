@@ -1,0 +1,9 @@
+Code-Review+2: Richard Jones <r1chardj0n3s@gmail.com>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Workflow+1: Akihiro Motoki <amotoki@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sat, 17 Sep 2016 08:47:22 +0000
+Reviewed-on: https://review.openstack.org/353350
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
