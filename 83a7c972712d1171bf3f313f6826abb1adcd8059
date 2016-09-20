@@ -1,0 +1,10 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+1: Akihiro Motoki <amotoki@gmail.com>
+Code-Review+2: Richard Jones <r1chardj0n3s@gmail.com>
+Workflow+1: Richard Jones <r1chardj0n3s@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 19 Sep 2016 22:48:06 +0000
+Reviewed-on: https://review.openstack.org/372442
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/mitaka
