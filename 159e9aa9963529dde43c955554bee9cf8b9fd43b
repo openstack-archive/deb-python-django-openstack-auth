@@ -1,0 +1,9 @@
+Code-Review+2: Rob Cresswell <robert.cresswell@outlook.com>
+Code-Review+2: Richard Jones <r1chardj0n3s@gmail.com>
+Workflow+1: Richard Jones <r1chardj0n3s@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 22 Sep 2016 05:46:01 +0000
+Reviewed-on: https://review.openstack.org/367145
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/newton
