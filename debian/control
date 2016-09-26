@@ -37,8 +37,8 @@ Build-Depends-Indep: python-babel (>= 2.3.4),
                      python3-six (>= 1.9.0),
                      python3-testscenarios,
 Standards-Version: 3.9.8
-Vcs-Git: https://anonscm.debian.org/git/openstack/python-django-openstack-auth.git
-Vcs-Browser: https://anonscm.debian.org/cgit/openstack/python-django-openstack-auth.git/
+Vcs-Git: https://git.openstack.org/openstack/deb-python-django-openstack-auth -b debian/newton
+Vcs-Browser: https://git.openstack.org/cgit/openstack/deb-python-django-openstack-auth?h=debian%2Fnewton
 Homepage: https://pypi.python.org/pypi/django_openstack_auth
 
 Package: python-django-openstack-auth
