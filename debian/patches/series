@@ -1,1 +1,1 @@
-fix-django-1.10-compat.patch
+Add-is_authenticated-and-is_anonymous-properties.patch

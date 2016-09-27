@@ -1,9 +1,15 @@
-python-django-openstack-auth (2.3.0-3) UNRELEASED; urgency=medium
+python-django-openstack-auth (2.4.0-1) experimental; urgency=medium
 
+  [ Ondřej Nový ]
   * d/s/options: extend-diff-ignore of .gitreview
   * d/control: Using OpenStack's Gerrit as VCS URLs.
 
- -- Ondřej Nový <onovy@debian.org>  Mon, 26 Sep 2016 19:09:21 +0200
+  [ Thomas Goirand ]
+  * New upstream release.
+  * Fixed (build-)depends for this release.
+  * Add Add-is_authenticated-and-is_anonymous-properties.patch.
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 27 Sep 2016 20:26:43 +0200
 
 python-django-openstack-auth (2.3.0-2) experimental; urgency=medium
 

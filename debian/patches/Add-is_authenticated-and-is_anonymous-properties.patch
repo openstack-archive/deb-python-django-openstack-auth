@@ -1,0 +1,117 @@
+Description: Add is_authenticated and is_anonymous properties
+ See
+ https://docs.djangoproject.com/en/1.10/releases/1.10/#using-user-is-authenticated-and-user-is-anonymous-as-methods
+ .
+ is_anonymous() and is_authenticated() functions are now properties, and
+ throw critical security warnings when using python manage.py check in
+ django 1.10
+ .
+ The duplication is just to make it explicit which code paths are being
+ followed. They could be refactored to remove it, but in a few months
+ when we move to the next LTS we would just end up removing the refactors
+ since there would once again be a single path.
+ .
+ We also removed the `margin` parameter, since it is never used anywhere.
+ This will be documented in a Horizon release note.
+Author: Rob Cresswell <robert.cresswell@outlook.com>
+Date: Wed, 10 Aug 2016 09:10:20 +0100
+Change-Id: I7a92089ae62a9017274002648f26f13bc34709d9
+Origin: upstream, https://review.openstack.org/374732
+Last-Update: 2016-09-27
+
+diff --git a/openstack_auth/user.py b/openstack_auth/user.py
+index c9200f4..fba75e7 100644
+--- a/openstack_auth/user.py
++++ b/openstack_auth/user.py
+@@ -14,9 +14,11 @@
+ import hashlib
+ import logging
+ 
++import django
+ from django.conf import settings
+ from django.contrib.auth import models
+ from django.db import models as db_models
++from django.utils import deprecation
+ from keystoneauth1 import exceptions as keystone_exceptions
+ from keystoneclient.common import cms as keystone_cms
+ import six
+@@ -261,35 +263,50 @@ def is_token_expired(self, margin=None):
+             return None
+         return not utils.is_token_valid(self.token, margin)
+ 
+-    def is_authenticated(self, margin=None):
+-        """Checks for a valid authentication.
+-
+-        :param margin:
+-           A security time margin in seconds before end of authentication.
+-           Will return ``False`` if authentication ends in less than ``margin``
+-           seconds of time.
+-           A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
+-           django settings.
+-
+-        """
+-        return (self.token is not None and
+-                utils.is_token_valid(self.token, margin))
+-
+-    def is_anonymous(self, margin=None):
+-        """Return if the user is not authenticated.
+-
+-        Returns ``True`` if not authenticated,``False`` otherwise.
+-
+-        :param margin:
+-           A security time margin in seconds before end of an eventual
+-           authentication.
+-           Will return ``True`` even if authenticated but that authentication
+-           ends in less than ``margin`` seconds of time.
+-           A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
+-           django settings.
+-
+-        """
+-        return not self.is_authenticated(margin)
++    if django.VERSION >= (1, 10):
++        @property
++        def is_authenticated(self):
++            """Checks for a valid authentication."""
++            if (self.token is not None and utils.is_token_valid(self.token)):
++                return deprecation.CallableTrue
++            else:
++                return deprecation.CallableFalse
++
++        @property
++        def is_anonymous(self):
++            """Return if the user is not authenticated.
++
++            Returns ``True`` if not authenticated,``False`` otherwise.
++            """
++            return deprecation.CallableBool(not self.is_authenticated)
++    else:
++        def is_authenticated(self, margin=None):
++            """Checks for a valid authentication.
++
++            :param margin:
++               A security time margin in seconds before end of authentication.
++               Will return ``False`` if authentication ends in less than
++               ``margin`` seconds of time.
++               A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
++               django settings.
++            """
++            return (self.token is not None and
++                    utils.is_token_valid(self.token, margin))
++
++        def is_anonymous(self, margin=None):
++            """Return if the user is not authenticated.
++
++            Returns ``True`` if not authenticated,``False`` otherwise.
++
++            :param margin:
++               A security time margin in seconds before end of an eventual
++               authentication.
++               Will return ``True`` even if authenticated but that
++               authentication ends in less than ``margin`` seconds of time.
++               A default margin can be set by the TOKEN_TIMEOUT_MARGIN in the
++               django settings.
++            """
++            return not self.is_authenticated(margin)
+ 
+     @property
+     def is_active(self):
