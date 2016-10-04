@@ -1,3 +1,9 @@
+python-django-openstack-auth (2.4.1-2) unstable; urgency=medium
+
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 04 Oct 2016 10:50:47 +0200
+
 python-django-openstack-auth (2.4.1-1) experimental; urgency=medium
 
   [ Ondřej Nový ]
