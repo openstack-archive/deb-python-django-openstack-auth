@@ -1,0 +1,10 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+1: Eric Peterson <eric.peterson@charter.com>
+Code-Review+2: Richard Jones <r1chardj0n3s@gmail.com>
+Workflow+1: Richard Jones <r1chardj0n3s@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 02 Nov 2016 08:13:39 +0000
+Reviewed-on: https://review.openstack.org/391435
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/newton
