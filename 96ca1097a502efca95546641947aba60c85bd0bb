@@ -1,0 +1,9 @@
+Code-Review+2: Richard Jones <r1chardj0n3s@gmail.com>
+Code-Review+2: Radomir Dopieralski <openstack@sheep.art.pl>
+Workflow+1: Radomir Dopieralski <openstack@sheep.art.pl>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 03 Jan 2017 15:41:15 +0000
+Reviewed-on: https://review.openstack.org/365406
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
