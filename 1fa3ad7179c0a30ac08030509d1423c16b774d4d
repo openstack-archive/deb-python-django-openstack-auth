@@ -1,0 +1,10 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+1: Rodrigo Duarte <rodrigodsousa@gmail.com>
+Code-Review+2: Rob Cresswell <robert.cresswell@outlook.com>
+Workflow+1: Rob Cresswell <robert.cresswell@outlook.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 02 Feb 2017 10:22:47 +0000
+Reviewed-on: https://review.openstack.org/427721
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master

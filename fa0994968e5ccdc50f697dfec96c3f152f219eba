@@ -1,0 +1,8 @@
+Code-Review+2: Tatiana Ovchinnikova <t.v.ovtchinnikova@gmail.com>
+Workflow+1: Tatiana Ovchinnikova <t.v.ovtchinnikova@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 31 Jan 2017 14:07:09 +0000
+Reviewed-on: https://review.openstack.org/426649
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
