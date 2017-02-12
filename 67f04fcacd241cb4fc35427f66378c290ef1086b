@@ -1,0 +1,9 @@
+Code-Review+2: David Lyle <dklyle0@gmail.com>
+Code-Review+2: Rob Cresswell <robert.cresswell@outlook.com>
+Workflow+1: Rob Cresswell <robert.cresswell@outlook.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 10 Feb 2017 12:50:37 +0000
+Reviewed-on: https://review.openstack.org/428271
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/ocata
