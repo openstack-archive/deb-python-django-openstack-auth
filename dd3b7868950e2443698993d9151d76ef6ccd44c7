@@ -1,0 +1,9 @@
+Code-Review+1: Ivan Kolodyazhny <e0ne@e0ne.info>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Workflow+1: Akihiro Motoki <amotoki@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 29 Jun 2017 17:47:30 +0000
+Reviewed-on: https://review.openstack.org/478848
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/master
