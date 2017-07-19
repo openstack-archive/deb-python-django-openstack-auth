@@ -1,0 +1,9 @@
+Code-Review+2: Tony Breeds <tony@bakeyournoodle.com>
+Code-Review+2: Akihiro Motoki <amotoki@gmail.com>
+Workflow+1: Akihiro Motoki <amotoki@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 19 Jul 2017 10:41:22 +0000
+Reviewed-on: https://review.openstack.org/482828
+Project: openstack/deb-python-django-openstack-auth
+Branch: refs/heads/stable/ocata
